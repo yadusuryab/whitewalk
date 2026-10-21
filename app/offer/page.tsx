@@ -1,16 +1,12 @@
-'use client';
+import React, { Suspense } from 'react';
+import OfferClient from './offer-client';
 
-import { useSearchParams } from 'next/navigation';
-import ProductList from '@/components/product/product-list';
-import { toPairCount } from '@/lib/checkout-constants';
-import React from 'react';
-
-// /offer          -> 2 pairs
-// /offer?pairs=3  -> 3 pairs
-export default function OfferClient() {
-  const searchParams = useSearchParams();
-  const price = searchParams.get('price');
-  const pairCount = toPairCount(searchParams.get('pairs'));
-
-  return <ProductList price={price} pairCount={pairCount} />;
+export default function OfferPage() {
+  return (
+    <div className="container mx-auto px-4">
+      <Suspense fallback={<div>Loading...</div>}>
+        <OfferClient />
+      </Suspense>
+    </div>
+  );
 }
