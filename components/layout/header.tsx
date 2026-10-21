@@ -8,7 +8,6 @@ import { ProductCardWithSale } from "../sections/sale-is-live";
 import Brand from "../utils/brand";
 
 const MARQUEE_ITEMS = [
-  "Free flame socks",
   "All India delivery",
   "Best quality items",
   "10K+ happy customers",
