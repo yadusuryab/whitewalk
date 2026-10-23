@@ -13,8 +13,7 @@ import { display, H2, LivePill, PillCTA } from "@/components/checkout/ui";
 import { OrderSummary } from "@/components/checkout/order-summary";
 import {
   BASE_PRICE,
-  COD_CHARGE,
-  COD_ADVANCE_AMOUNT,
+  COD_CHARGE_BY_PAIR,
   SHOE_CLEANER_PRICE,
   ONLINE_DELIVERY_MIN_DAYS,
   ONLINE_DELIVERY_MAX_DAYS,
@@ -24,6 +23,7 @@ import {
   UPI_ID,
   buildUpiLink,
   toPairCount,
+  getOfferShipping,
   type PairCount,
 } from "@/lib/checkout-constants";
 import { StepProgress } from "@/components/checkout/step-progress";
@@ -112,6 +112,7 @@ export default function CheckoutPage() {
   const freeProduct = mainProduct?.freeProduct;
   const thirdProduct = (mainProduct as any)?.thirdProduct;
 
+  // 1, 2 or 3 pairs. Carts saved before pairCount existed fall back to 2.
   const pairCount: PairCount = toPairCount((mainProduct as any)?.pairCount);
   const offer = OFFER_CONFIG[pairCount];
 
@@ -119,26 +120,31 @@ export default function CheckoutPage() {
     0,
     (mainProduct?.price || BASE_PRICE) - BASE_PRICE,
   );
-  const pair2Extra = Math.max(
-    0,
-    (freeProduct?.price || BASE_PRICE) - BASE_PRICE,
-  );
+  // Only pairs that exist in this offer can add an upgrade price.
+  const pair2Extra =
+    pairCount >= 2
+      ? Math.max(0, (freeProduct?.price || BASE_PRICE) - BASE_PRICE)
+      : 0;
   const pair3Extra =
     pairCount === 3
       ? Math.max(0, (thirdProduct?.price || BASE_PRICE) - BASE_PRICE)
       : 0;
 
   const subtotal = offer.basePrice + pair1Extra + pair2Extra + pair3Extra;
-  const offerShipping = offer.shippingPerPair * pairCount;
-  const codCharge = shippingMethod === "online" ? 0 : COD_CHARGE;
+
+  // Shipping depends on the offer and the customer's state (Kerala vs outside)
+  const offerShipping = getOfferShipping(pairCount, customerDetails.state);
+
+  const isCod = shippingMethod === "cod";
+  const codCharge:any = isCod ? COD_CHARGE_BY_PAIR[pairCount] : 0;
   const shippingCharge = offerShipping + codCharge;
   const cleanerCharge =
     shoeCleanerAddon && addShoeCleaner ? SHOE_CLEANER_PRICE : 0;
   const totalAmount = subtotal + shippingCharge + cleanerCharge;
 
-  const isCod = shippingMethod === "cod";
-  const paymentAmount = isCod ? COD_ADVANCE_AMOUNT : totalAmount;
-  const remainingAmount = isCod ? totalAmount - COD_ADVANCE_AMOUNT : 0;
+  // COD: no advance, full amount paid on delivery
+  const paymentAmount = isCod ? 0 : totalAmount;
+  const remainingAmount = isCod ? totalAmount : 0;
 
   const onlineDelivery = getExpectedDelivery(
     ONLINE_DELIVERY_MIN_DAYS,
@@ -158,7 +164,7 @@ export default function CheckoutPage() {
       buildUpiLink({
         amount: paymentAmount,
         payeeName: site.name || "whitewalk",
-        note: `${pairCount} pair order`,
+        note: `${pairCount} ${pairCount === 1 ? "pair" : "pairs"} order`,
       }),
     [paymentAmount, pairCount],
   );
@@ -213,24 +219,9 @@ export default function CheckoutPage() {
 
   const goToDetailsStep = () => setCurrentStep("details");
 
-  const goToPay = () => {
-    setTouched((prev) => {
-      const next = { ...prev };
-      REQUIRED_FIELDS.forEach((f) => (next[f] = true));
-      return next;
-    });
-    if (!isFormValid) return;
-    if (!UPI_ID) {
-      setFormErrors(["Payment is not configured. Please contact us."]);
-      return;
-    }
-    setFormErrors([]);
-    setShowPay(true);
-  };
-
   // ---------- Place order ----------
   const placeOrder = async () => {
-    if (!screenshot) {
+    if (!isCod && !screenshot) {
       toast.error("Upload your payment screenshot");
       return;
     }
@@ -250,7 +241,8 @@ export default function CheckoutPage() {
           isFreeItem: false,
         },
       ];
-      if (freeProduct) {
+      // 1 pair = main product only
+      if (pairCount >= 2 && freeProduct) {
         lines.push({
           productId: freeProduct._id,
           selectedSize: freeProduct.selectedSize,
@@ -272,13 +264,13 @@ export default function CheckoutPage() {
         shippingMethod,
         addShoeCleaner: shoeCleanerAddon && addShoeCleaner,
         expectedDeliveryLabel: activeDelivery.label,
-        clientAmount: paymentAmount, // server rejects if it disagrees
-        utr: utr.trim() || null,
+        clientAmount: totalAmount, // full total; server recomputes and rejects if it disagrees
+        utr: isCod ? null : utr.trim() || null,
       };
 
       const fd = new FormData();
       fd.append("payload", JSON.stringify(payload));
-      fd.append("screenshot", screenshot);
+      if (screenshot && !isCod) fd.append("screenshot", screenshot);
 
       const res = await fetch("/api/checkout/manual-order", {
         method: "POST",
@@ -289,18 +281,39 @@ export default function CheckoutPage() {
         throw new Error(data?.error || "Could not place order");
       }
 
-      fbTrackCustom("ManualOrderPlaced", {
-        value: paymentAmount,
+      fbTrackCustom(isCod ? "CodOrderPlaced" : "ManualOrderPlaced", {
+        value: totalAmount,
         currency: "INR",
       });
 
       localStorage.removeItem("cart");
       window.dispatchEvent(new Event("cartUpdated"));
-      router.push(`/order-confirmed?order_id=${data.orderId}&manual=1`);
+      router.push(
+        `/order-confirmed?order_id=${data.orderId}${isCod ? "&cod=1" : "&manual=1"}`,
+      );
     } catch (e: any) {
       setFormErrors([e?.message || "Could not place order. Try again."]);
       setIsLoading(false);
     }
+  };
+
+  const goToPay = () => {
+    setTouched((prev) => {
+      const next = { ...prev };
+      REQUIRED_FIELDS.forEach((f) => (next[f] = true));
+      return next;
+    });
+    if (!isFormValid) return;
+    if (isCod) {
+      placeOrder();
+      return;
+    }
+    if (!UPI_ID) {
+      setFormErrors(["Payment is not configured. Please contact us."]);
+      return;
+    }
+    setFormErrors([]);
+    setShowPay(true);
   };
 
   if (!cartItems.length || !mainProduct) {
@@ -344,8 +357,8 @@ export default function CheckoutPage() {
               </div>
               <PaymentStep
                 mainProduct={mainProduct}
-                freeProduct={freeProduct}
-                thirdProduct={thirdProduct}
+                freeProduct={pairCount >= 2 ? freeProduct : undefined}
+                thirdProduct={pairCount === 3 ? thirdProduct : undefined}
                 pairCount={pairCount}
                 freeSocksOffer={freeSocksOffer}
                 shoeCleanerAddon={shoeCleanerAddon}
@@ -358,7 +371,7 @@ export default function CheckoutPage() {
                 onContinue={goToDetailsStep}
               />
             </>
-          ) : showPay ? (
+          ) : showPay && !isCod ? (
             <div>
               <button
                 type="button"
@@ -372,8 +385,8 @@ export default function CheckoutPage() {
                 amount={paymentAmount}
                 upiLink={upiLink}
                 upiId={UPI_ID}
-                isCod={isCod}
-                remainingAmount={remainingAmount}
+                isCod={false}
+                remainingAmount={0}
                 file={screenshot}
                 onFileChange={setScreenshot}
                 utr={utr}
@@ -416,7 +429,7 @@ export default function CheckoutPage() {
 
           {isCod && !showPay && (
             <p className="mt-4 text-center text-sm font-medium text-neutral-500">
-              ₹{COD_ADVANCE_AMOUNT} advance now, ₹{remainingAmount} on delivery
+              Pay ₹{remainingAmount} on delivery
             </p>
           )}
         </div>
@@ -425,7 +438,7 @@ export default function CheckoutPage() {
       {currentStep === "details" && (
         <div className="fixed bottom-0 left-0 right-0 border-t border-neutral-200 bg-white/90 py-3 backdrop-blur-md duration-500 animate-in slide-in-from-bottom-full">
           <div className="container mx-auto max-w-2xl px-5 sm:px-8">
-            {showPay ? (
+            {showPay && !isCod ? (
               <PillCTA
                 onClick={placeOrder}
                 loading={isLoading}
@@ -435,9 +448,11 @@ export default function CheckoutPage() {
               </PillCTA>
             ) : (
               <>
-                <PillCTA onClick={goToPay}>
+                <PillCTA onClick={goToPay} loading={isLoading}>
                   {isCod
-                    ? `Pay ₹${COD_ADVANCE_AMOUNT} advance`
+                    ? isLoading
+                      ? "Placing order…"
+                      : `Place order · Pay ₹${totalAmount} on delivery`
                     : `Pay ₹${totalAmount}`}
                 </PillCTA>
                 {!isFormValid && (

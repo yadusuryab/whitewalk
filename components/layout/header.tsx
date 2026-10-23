@@ -10,6 +10,7 @@ import Brand from "../utils/brand";
 const MARQUEE_ITEMS = [
   "All India delivery",
   "Best quality items",
+  "COD Extra charges apply",
   "10K+ happy customers",
 ];
 

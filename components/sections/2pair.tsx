@@ -68,7 +68,7 @@ export function TwoPairsOffer() {
         {/* Price, savings, note */}
         <div className={reveal} style={delay(120)}>
           <div className="mt-5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <span className="text-5xl font-extrabold leading-none tracking-[-0.04em] text-blue-400 sm:text-7xl">
+            <span className="text-5xl font-extrabold leading-none tracking-[-0.04em] text-white sm:text-7xl">
               {inr(PRICE)}
             </span>
             {savings > 0 && (
@@ -79,7 +79,7 @@ export function TwoPairsOffer() {
           </div>
 
           {savings > 0 && (
-            <p className="mt-4 inline-block rounded-full bg-blue-500 px-3.5 py-1.5 text-sm font-semibold text-white">
+            <p className="mt-4 inline-block rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold text-black">
               You save {inr(savings)}
             </p>
           )}

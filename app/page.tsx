@@ -8,6 +8,7 @@ import { OrderTrackCTA } from "@/components/sections/order-track";
 import { ReviewsBento } from "@/components/sections/review-bento";
 import { ShopVideo } from "@/components/layout/sv";
 import { client } from "@/sanityClient";
+import { OnePairOffer } from "@/components/sections/1pair";
 
 // Each card: full column width, never split across columns
 const CARD = " break-inside-avoid max-w-[600px] w-full mx-auto grid gap-2";
@@ -28,7 +29,9 @@ export default function Home() {
       <div className="mx-auto w-full columns-1 gap-1 px-4 md:grid md:grid-cols-2">
         <div className={CARD}>
           <Hero />
+           <OnePairOffer/>
            <TwoPairsOffer />
+          
           <div className={CARD}>
             <OrderTrackCTA />
             <div className={CARD}>

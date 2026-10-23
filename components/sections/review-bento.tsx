@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -16,8 +17,8 @@ const display = Inter_Tight({
 const READ_HREF = "/reviews";
 const WRITE_HREF = "/reviews"; // change if you have a dedicated write-a-review page
 const IMAGES = [
-  { src: "/reviews/1.jpg", alt: "Customer review screenshot 1" },
-  { src: "/reviews/2.jpg", alt: "Customer review screenshot 2" },
+  { src: "/r1.jpeg", alt: "Customer review screenshot 1" },
+  { src: "/r2.jpeg", alt: "Customer review screenshot 2" },
 ];
 
 export function ReviewsBento() {
@@ -52,7 +53,7 @@ export function ReviewsBento() {
   return (
     <section ref={ref} className="w-full sm:px-8">
       <div
-        className={`${display.className} group relative rounded-[1.75rem] bg-blue-600 p-6 text-white sm:p-10`}
+        className={`${display.className} group relative rounded-[1.75rem] bg-neutral-950 p-6 text-white ring-1 ring-white/10 sm:p-10`}
       >
         {/* Stars + headline */}
         <div className={reveal} style={delay(0)}>
@@ -71,7 +72,7 @@ export function ReviewsBento() {
             Happy customers.
           </h2>
 
-          <p className="mt-4 text-lg font-medium text-white/75">
+          <p className="mt-4 text-lg font-medium text-white/60">
             Real reviews from real people.
           </p>
         </div>
@@ -84,12 +85,12 @@ export function ReviewsBento() {
               className={`${reveal} ${i === 1 ? "mt-6" : ""}`}
               style={delay(160 + i * 120)}
             >
-              <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-white/10">
+              <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/10">
                 <Image
                   src={img.src}
                   alt={img.alt}
                   fill
-                  className="object-cover object-top transition-transform duration-700 group-hover:scale-[1.03]"
+                  className="object-cover object-top grayscale contrast-110 transition-transform duration-700 group-hover:scale-[1.03]"
                   sizes="(max-width: 640px) 45vw, 300px"
                 />
               </div>

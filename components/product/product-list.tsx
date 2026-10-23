@@ -24,6 +24,8 @@ function ProductList({ price, pairCount = 2 }: ProductListProps) {
   const [offset, setOffset] = useState<number>(0);
   const [initialLoadDone, setInitialLoadDone] = useState<boolean>(false);
 
+  const heading = pairCount === 1 ? "Select your pair" : "Select 1st Pair";
+
   const {
     handleProductClick,
     renderBogoPage,
@@ -97,15 +99,12 @@ function ProductList({ price, pairCount = 2 }: ProductListProps) {
     };
   }, [loadMore, hasMore, loading, initialLoadDone]);
 
-  // Safety net: only show shoes that belong to this offer,
-  // even if the query returns extras.
   const visibleProducts = useMemo(
     () => vehicles.filter((item) => isInOffer(item, pairCount)),
     [vehicles, pairCount],
   );
   const bogoProducts = visibleProducts;
 
-  // If a batch had few matches, keep fetching until there are enough.
   useEffect(() => {
     if (
       initialLoadDone &&
@@ -121,7 +120,7 @@ function ProductList({ price, pairCount = 2 }: ProductListProps) {
     return (
       <div className="">
         <div className="md:mx-24">
-          <SHeading title="Select 1st Pair" size="lg" nolink={true} />
+          <SHeading title={heading} size="lg" nolink={true} />
         </div>
         <div className="md:mx-24">
           <div className="grid lg:grid-cols-4 md:grid-cols-3 grid-cols-2 gap-4">
@@ -149,7 +148,7 @@ function ProductList({ price, pairCount = 2 }: ProductListProps) {
   return (
     <div className="px-4">
       <div className="md:mx-24">
-        <SHeading title="Select 1st Pair" size="lg" nolink={true} />
+        <SHeading title={heading} size="lg" nolink={true} />
       </div>
 
       <div className="md:mx-24 mt-4">

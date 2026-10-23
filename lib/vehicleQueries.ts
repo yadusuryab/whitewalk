@@ -3,10 +3,6 @@ import { client } from "@/sanityClient";
 const cache = new Map();
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
-// For getAllShoes (listing pages)
-// lib/vehicleQueries.ts  -> replace getAllShoes with this.
-// NEW 5th param: `pairs` (1, 2 or 3). Omit it for no offer filter.
-
 const offerFilterFor = (pairs?: number | null) => {
   if (pairs === 1) {
     return `&& (offer1Pair == true || (!defined(offer1Pair) && !defined(offer2Pair) && !defined(offer3Pair)))`;
@@ -58,6 +54,12 @@ export const getAllShoes = async (
     disableReason,
     stock,
     productLabel,
+    "hasVideo": defined(video.asset),
+    "videoUrl": video.asset->url,
+    "videoPoster": select(
+      defined(videoPoster.asset) => videoPoster.asset->url + "?w=800&h=800&auto=format&q=80&fit=crop",
+      null
+    ),
     "imageUrl": images[0].asset->url + "?w=400&h=400&auto=format&q=85&fit=crop"
   }`;
 
@@ -75,22 +77,20 @@ export const getAllShoes = async (
     return undefined;
   }
 };
-// lib/queries.ts
 
 export async function getReviewImages(): Promise<string[]> {
   const query = `*[_type == "review" && isApproved == true && count(reviewImages) > 0].reviewImages[].asset->url`;
   return client.fetch(query);
 }
-// For getShoeById (detail pages) - HIGHER QUALITY
+
 export const getShoeById = async (id: string): Promise<any | undefined> => {
   const cacheKey = `shoe-${id}`;
-  
+
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.data;
   }
 
-  // SIGNIFICANT QUALITY INCREASE
   const query = `*[_type == "shoe" && _id == $id][0] {
     _id,
     productName,
@@ -105,23 +105,27 @@ export const getShoeById = async (id: string): Promise<any | undefined> => {
     isOffer,
     offerPrice,
     buyOneGetOne,
-    // HIGH QUALITY images - perfect for product details
-    "images": images[0...4] { // Show more images
-      "url": asset->url + "?w=800&h=800&auto=format&q=90&fit=fillmax", // High quality for zoom
-      "thumbnail": asset->url + "?w=200&h=200&auto=format&q=80&fit=crop" // Better thumbnails
+    "videoUrl": video.asset->url,
+    "videoPoster": select(
+      defined(videoPoster.asset) => videoPoster.asset->url + "?w=800&h=800&auto=format&q=80&fit=crop",
+      null
+    ),
+    "images": images[0...4] {
+      "url": asset->url + "?w=800&h=800&auto=format&q=90&fit=fillmax",
+      "thumbnail": asset->url + "?w=200&h=200&auto=format&q=80&fit=crop"
     }
   }`;
 
   try {
     const shoe = await client.fetch(query, { id });
-    
+
     if (shoe) {
       cache.set(cacheKey, {
         data: shoe,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
-    
+
     return shoe || undefined;
   } catch (error) {
     console.error("Error fetching shoe:", error);

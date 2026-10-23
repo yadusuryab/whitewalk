@@ -1,6 +1,6 @@
 "use client";
 
-import Poster2 from "@/public/hero2.avif";
+import Poster2 from "@/public/offr.avif";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -120,7 +120,7 @@ export function Hero() {
           {/* Sticker */}
           <div
             aria-hidden="true"
-            className="absolute -top-5 right-3 flex h-24 w-24 -rotate-12 flex-col items-center justify-center rounded-full bg-blue-600 text-white shadow-xl shadow-blue-600/30 sm:h-28 sm:w-28"
+            className="absolute -top-5 right-3 flex h-24 w-24 -rotate-12 flex-col items-center justify-center rounded-2xl bg-black text-white shadow-xl shadow-blue-600/30 sm:h-28 sm:w-28"
           >
             <span className="text-[11px] font-semibold leading-none">
               {OFFER_LABEL}

@@ -28,6 +28,8 @@ export interface Product {
   imageUrl?: string;
   price?: number;
   offerPrice?: number;
+  hasVideo?: boolean;
+  videoUrl?: string;
 }
 
 type PairPick = { product: Product | null; size: string | null };
@@ -119,6 +121,7 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
+  // Extra pairs beyond the first: 0 for 1 pair, 1 for 2 pairs, 2 for 3 pairs
   const [extraPicks, setExtraPicks] = useState<PairPick[]>(() =>
     emptyPicks(pairCount - 1),
   );
@@ -194,11 +197,17 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
 
   const addToCart = useCallback(
     (item: Product, size: string, picks: PairPick[] = []) => {
+      // Strip video fields so the cart in localStorage stays light
+      const slim = (p: Product) => {
+        const { videoUrl, hasVideo, ...rest } = p;
+        return rest;
+      };
+
       const toLine = (p?: PairPick) =>
-        p?.product ? { ...p.product, selectedSize: p.size } : null;
+        p?.product ? { ...slim(p.product), selectedSize: p.size } : null;
 
       const cartItem = {
-        ...item,
+        ...slim(item),
         selectedSize: size,
         pairCount,
         freeProduct: toLine(picks[0]),
@@ -281,10 +290,11 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
     [bogoLoading, bogoHasMore, loadMoreBogoProducts],
   );
 
-  /* ---------- BOGO page ---------- */
+  /* ---------- BOGO page (only used for 2 and 3 pair offers) ---------- */
 
   const renderBogoPage = useCallback(
     (initialBogoProducts: Product[]) => {
+      if (pairCount < 2) return null;
       if (!isBogoModalOpen || !selectedProduct) return null;
 
       const combinedBogoProducts = [...initialBogoProducts, ...allBogoProducts];
@@ -471,7 +481,8 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
 
   const renderSizeModal = useCallback(
     (bogoProducts: Product[]) => {
-      const isSelectingFreeProduct = isBogoModalOpen && !!selectedFreeProduct;
+      const isSelectingFreeProduct =
+        pairCount > 1 && isBogoModalOpen && !!selectedFreeProduct;
       const currentProduct = isSelectingFreeProduct
         ? selectedFreeProduct
         : selectedProduct;
@@ -486,13 +497,15 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
       return (
         <Dialog open={isSizeModalOpen} onOpenChange={setIsSizeModalOpen}>
           <DialogContent
-            className={`${display.className} max-h-[90vh] max-w-[350px] gap-0 rounded-[1.75rem] border-0 bg-white p-5 text-neutral-950 duration-300`}
+            className={`${display.className} max-h-[90vh] max-w-[350px] gap-0 overflow-y-auto rounded-[1.75rem] border-0 bg-white p-5 text-neutral-950 duration-300`}
           >
             <DialogTitle className="sr-only">Select Size</DialogTitle>
 
             <div className="mb-5 overflow-hidden rounded-[1.5rem] duration-500 animate-in fade-in zoom-in-95">
               <ProductCard2 product={currentProduct} noLink={true} />
             </div>
+
+           
 
             <h3 className="mb-1 line-clamp-1 text-2xl font-extrabold leading-none tracking-[-0.04em]">
               {currentProduct.productName}
@@ -560,7 +573,9 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
                     completeBogoFlow();
                   }
                 } else {
-                  if (isInOffer(selectedProduct, pairCount)) {
+                  // Only 2 and 3 pair offers continue to the "pick next pair" step.
+                  // A 1 pair order goes straight to checkout.
+                  if (pairCount > 1 && isInOffer(selectedProduct, pairCount)) {
                     setIsBogoModalOpen(true);
                     setIsSizeModalOpen(false);
                   } else {
@@ -575,7 +590,9 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
                 ? isLastSlot
                   ? "Confirm & checkout"
                   : "Confirm & next pair"
-                : "Confirm size"}
+                : pairCount === 1
+                  ? "Confirm & checkout"
+                  : "Confirm size"}
             </PillCTA>
           </DialogContent>
         </Dialog>
