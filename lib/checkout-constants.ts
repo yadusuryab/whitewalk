@@ -1,7 +1,5 @@
 export const BASE_PRICE = 1499;
-export const COD_CHARGE = 300;
 export const SHOE_CLEANER_PRICE = 80;
-export const COD_ADVANCE_AMOUNT = 300;
 
 export const ONLINE_DELIVERY_MIN_DAYS = 5;
 export const ONLINE_DELIVERY_MAX_DAYS = 8;
@@ -9,16 +7,10 @@ export const COD_DELIVERY_MIN_DAYS = 7;
 export const COD_DELIVERY_MAX_DAYS = 10;
 
 export type PairCount = 1 | 2 | 3;
-// lib/checkout-constants.ts — remove COD_CHARGE and COD_ADVANCE_AMOUNT, add:
-export const COD_CHARGE_BY_PAIR: Record<1 | 2 | 3, number> = {
-  1: 200,
-  2: 400,
-  3: 600,
-};
+
 // 1 pair:  999
 // 2 pairs: 1499
-// 3 pairs: 1500 (+ shipping, see getOfferShipping below)
-// (If you want 1799 total, set the 3-pair basePrice to 1499.)
+// 3 pairs: 1500
 export const OFFER_CONFIG: Record<
   PairCount,
   { basePrice: number; shippingPerPair: number }
@@ -73,15 +65,22 @@ export const buildUpiLink = ({
   `&cu=INR` +
   `&tn=${encodeURIComponent(note)}`;
 
-// Shipping charged PER PAIR, by region
+// ------------------------------------------------------------------
+// Shipping — charged PER PAIR, by region. Only applies on PREPAID.
+// ------------------------------------------------------------------
 export const SHIPPING_PER_PAIR = {
   kerala: { 1: 0, 2: 0, 3: 100 },
   outside: { 1: 50, 2: 50, 3: 150 },
 } as const;
 
-export const isKerala = (state?: string) =>
-  (state ?? "").trim().toLowerCase() === "kerala";
-
+// Blank state (before the customer fills the form in) → treated as Kerala.
+// Result: the page loads showing the LOWEST possible price (Kerala = free
+// shipping on 1–2 pairs). Once a non-Kerala state is typed, pricing flips
+// to outside-Kerala rates. Typing "kerala"/"KERALA"/" Kerala " stays Kerala.
+export const isKerala = (state?: string) => {
+  const s = (state ?? "").trim().toLowerCase();
+  return s === "" || s === "kerala";
+};
 export const getOfferShipping = (pairCount: PairCount, state?: string) => {
   const table = isKerala(state)
     ? SHIPPING_PER_PAIR.kerala
@@ -90,8 +89,27 @@ export const getOfferShipping = (pairCount: PairCount, state?: string) => {
 };
 
 // ------------------------------------------------------------------
+// COD charge — charged PER PAIR, by region. Only applies on COD.
+// Kerala: ₹200 / pair. Outside Kerala: ₹250 / pair.
+// ------------------------------------------------------------------
+export const COD_CHARGE_PER_PAIR = {
+  kerala: { 1: 200, 2: 200, 3: 200 },
+  outside: { 1: 250, 2: 250, 3: 250 },
+} as const;
+
+export const getCodCharge = (pairCount: PairCount, state?: string) => {
+  const table = isKerala(state)
+    ? COD_CHARGE_PER_PAIR.kerala
+    : COD_CHARGE_PER_PAIR.outside;
+  return table[pairCount] * pairCount;
+};
+
+// ------------------------------------------------------------------
 // SERVER ROUTE: /api/checkout/manual-order
-// It must use getOfferShipping(pairCount, customerDetails.state)
-// instead of offer.shippingPerPair * pairCount, and it must call
-// toPairCount() from this file so pairCount 1 is accepted.
+// It must use:
+//   const isCod = payload.shippingMethod === "cod";
+//   const pairCount = toPairCount(payload.pairCount);
+//   const offerShipping = isCod ? 0 : getOfferShipping(pairCount, state);
+//   const codCharge     = isCod ? getCodCharge(pairCount, state) : 0;
+//   total = base + pairExtras + offerShipping + codCharge + cleanerCharge;
 // ------------------------------------------------------------------

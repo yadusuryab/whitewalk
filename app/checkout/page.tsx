@@ -13,7 +13,6 @@ import { display, H2, LivePill, PillCTA } from "@/components/checkout/ui";
 import { OrderSummary } from "@/components/checkout/order-summary";
 import {
   BASE_PRICE,
-  COD_CHARGE_BY_PAIR,
   SHOE_CLEANER_PRICE,
   ONLINE_DELIVERY_MIN_DAYS,
   ONLINE_DELIVERY_MAX_DAYS,
@@ -24,6 +23,7 @@ import {
   buildUpiLink,
   toPairCount,
   getOfferShipping,
+  getCodCharge,
   type PairCount,
 } from "@/lib/checkout-constants";
 import { StepProgress } from "@/components/checkout/step-progress";
@@ -110,37 +110,47 @@ export default function CheckoutPage() {
   // ---------- Pricing (display only; server recomputes) ----------
   const mainProduct = cartItems[0];
   const freeProduct = mainProduct?.freeProduct;
+  // The actual mystery shoe — used ONLY in the order payload, never displayed.
   const thirdProduct = (mainProduct as any)?.thirdProduct;
 
   // 1, 2 or 3 pairs. Carts saved before pairCount existed fall back to 2.
   const pairCount: PairCount = toPairCount((mainProduct as any)?.pairCount);
   const offer = OFFER_CONFIG[pairCount];
 
+  // The 3rd pair is always a hidden surprise — customer never sees it.
+  const isMysteryThird = pairCount === 3;
+
   const pair1Extra = Math.max(
     0,
     (mainProduct?.price || BASE_PRICE) - BASE_PRICE,
   );
-  // Only pairs that exist in this offer can add an upgrade price.
   const pair2Extra =
     pairCount >= 2
       ? Math.max(0, (freeProduct?.price || BASE_PRICE) - BASE_PRICE)
       : 0;
-  const pair3Extra =
-    pairCount === 3
-      ? Math.max(0, (thirdProduct?.price || BASE_PRICE) - BASE_PRICE)
-      : 0;
+  // Surprise 3rd pair — its value is already in the 1500 base offer price.
+  // No premium is charged because the customer didn't choose it.
+  const pair3Extra = 0;
 
   const subtotal = offer.basePrice + pair1Extra + pair2Extra + pair3Extra;
 
-  // Shipping depends on the offer and the customer's state (Kerala vs outside)
-  const offerShipping = getOfferShipping(pairCount, customerDetails.state);
-
   const isCod = shippingMethod === "cod";
-  const codCharge:any = isCod ? COD_CHARGE_BY_PAIR[pairCount] : 0;
+
+  // Raw values by region — independent of the payment method the user picked.
+  const prepaidShipping = getOfferShipping(pairCount, customerDetails.state);
+  const codFee = getCodCharge(pairCount, customerDetails.state);
+
+  // Applied values — only ONE of these is non-zero at a time.
+  const offerShipping = isCod ? 0 : prepaidShipping;
+  const codCharge = isCod ? codFee : 0;
+
   const shippingCharge = offerShipping + codCharge;
   const cleanerCharge =
     shoeCleanerAddon && addShoeCleaner ? SHOE_CLEANER_PRICE : 0;
   const totalAmount = subtotal + shippingCharge + cleanerCharge;
+
+  // How much cheaper prepaid is vs COD — same regardless of selection.
+  const codSavings = Math.max(0, codFee - prepaidShipping);
 
   // COD: no advance, full amount paid on delivery
   const paymentAmount = isCod ? 0 : totalAmount;
@@ -241,7 +251,6 @@ export default function CheckoutPage() {
           isFreeItem: false,
         },
       ];
-      // 1 pair = main product only
       if (pairCount >= 2 && freeProduct) {
         lines.push({
           productId: freeProduct._id,
@@ -249,6 +258,7 @@ export default function CheckoutPage() {
           isFreeItem: pairCount === 2,
         });
       }
+      // Surprise shoe is still added to the order — just hidden from UI.
       if (pairCount === 3 && thirdProduct) {
         lines.push({
           productId: thirdProduct._id,
@@ -264,7 +274,7 @@ export default function CheckoutPage() {
         shippingMethod,
         addShoeCleaner: shoeCleanerAddon && addShoeCleaner,
         expectedDeliveryLabel: activeDelivery.label,
-        clientAmount: totalAmount, // full total; server recomputes and rejects if it disagrees
+        clientAmount: totalAmount,
         utr: isCod ? null : utr.trim() || null,
       };
 
@@ -358,7 +368,6 @@ export default function CheckoutPage() {
               <PaymentStep
                 mainProduct={mainProduct}
                 freeProduct={pairCount >= 2 ? freeProduct : undefined}
-                thirdProduct={pairCount === 3 ? thirdProduct : undefined}
                 pairCount={pairCount}
                 freeSocksOffer={freeSocksOffer}
                 shoeCleanerAddon={shoeCleanerAddon}
@@ -368,6 +377,7 @@ export default function CheckoutPage() {
                 setShippingMethod={setShippingMethod}
                 onlineDeliveryLabel={onlineDelivery.label}
                 codDeliveryLabel={codDelivery.label}
+                codSavings={codSavings}
                 onContinue={goToDetailsStep}
               />
             </>
@@ -419,6 +429,8 @@ export default function CheckoutPage() {
             pair2Extra={pair2Extra}
             pair3Extra={pair3Extra}
             offerShipping={offerShipping}
+            codCharge={codCharge}
+            codSavings={codSavings}
             freeSocksOffer={freeSocksOffer}
             shoeCleanerAddon={shoeCleanerAddon}
             addShoeCleaner={addShoeCleaner}

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { formatDeliveryDate } from "@/lib/checkout-utils";
 import {
   BASE_PRICE,
-  COD_CHARGE,
   SHOE_CLEANER_PRICE,
   ONLINE_DELIVERY_MIN_DAYS,
   ONLINE_DELIVERY_MAX_DAYS,
@@ -22,6 +21,8 @@ export function OrderSummary({
   pair2Extra,
   pair3Extra = 0,
   offerShipping = 0,
+  codCharge = 0,
+  codSavings = 0,
   freeSocksOffer,
   shoeCleanerAddon,
   addShoeCleaner,
@@ -35,6 +36,8 @@ export function OrderSummary({
   pair2Extra: number;
   pair3Extra?: number;
   offerShipping?: number;
+  codCharge?: number;
+  codSavings?: number;
   freeSocksOffer: boolean;
   shoeCleanerAddon: boolean;
   addShoeCleaner: boolean;
@@ -42,6 +45,11 @@ export function OrderSummary({
   activeDeliveryEnd: Date;
   totalAmount: number;
 }) {
+  // Only one of these is non-zero at a time (see checkout page pricing block):
+  //   Prepaid → offerShipping set, codCharge = 0
+  //   COD     → offerShipping = 0, codCharge set
+  const shippingAndHandling = offerShipping + codCharge;
+
   return (
     <div className="mt-8 rounded-[1.75rem] bg-neutral-100 p-5">
       <div className="space-y-3">
@@ -49,6 +57,7 @@ export function OrderSummary({
           <span className={muted}>Base price ({pairCount} pairs)</span>
           <span>₹{basePrice}</span>
         </div>
+
         {pair1Extra > 0 && (
           <div className={`${row} pl-3 text-xs ${muted}`}>
             <span>Extra — Pair 1</span>
@@ -67,6 +76,7 @@ export function OrderSummary({
             <span>+₹{pair3Extra}</span>
           </div>
         )}
+
         {freeSocksOffer && (
           <div className={row}>
             <span className={`flex items-center gap-1.5 ${muted}`}>
@@ -75,6 +85,7 @@ export function OrderSummary({
             <span className="font-semibold text-blue-700">Free</span>
           </div>
         )}
+
         {shoeCleanerAddon && addShoeCleaner && (
           <div className={row}>
             <span className={`flex items-center gap-1.5 ${muted}`}>
@@ -84,21 +95,14 @@ export function OrderSummary({
           </div>
         )}
 
-        {offerShipping > 0 && (
-          <div className={row}>
-            <span className={muted}>Shipping ({pairCount} pairs)</span>
-            <span>₹{offerShipping}</span>
-          </div>
-        )}
-
+        {/* Shipping & handling — combines prepaid shipping OR COD charge
+            into a single row. Shows FREE for prepaid with no shipping. */}
         <div className={row}>
-          <span className={muted}>
-            {offerShipping > 0 ? "Payment handling" : "Shipping"}
-          </span>
-          {shippingMethod === "online" ? (
+          <span className={muted}>Shipping & handling</span>
+          {shippingAndHandling === 0 ? (
             <span className="font-semibold text-blue-700">Free</span>
           ) : (
-            <span>₹{COD_CHARGE}</span>
+            <span>₹{shippingAndHandling}</span>
           )}
         </div>
 
@@ -129,9 +133,9 @@ export function OrderSummary({
           </span>
         </div>
 
-        {shippingMethod === "cod" && (
+        {shippingMethod === "cod" && codSavings > 0 && (
           <p className="text-center text-xs font-semibold text-blue-700">
-            Switch to prepaid to save ₹{COD_CHARGE}
+            Switch to prepaid to save ₹{codSavings}
           </p>
         )}
 

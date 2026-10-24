@@ -9,6 +9,7 @@ import { ReviewsBento } from "@/components/sections/review-bento";
 import { ShopVideo } from "@/components/layout/sv";
 import { client } from "@/sanityClient";
 import { OnePairOffer } from "@/components/sections/1pair";
+import { StoreLocation } from "@/components/sections/store-location";
 
 // Each card: full column width, never split across columns
 const CARD = " break-inside-avoid max-w-[600px] w-full mx-auto grid gap-2";
@@ -45,7 +46,7 @@ export default function Home() {
             <FreeSocksPromo />
           </div>
         )}
-
+<StoreLocation/>
         <div className={CARD}>
          
           <div className={CARD}>

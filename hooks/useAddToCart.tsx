@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 import { Inter_Tight } from "next/font/google";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Search, Check, ArrowUpRight } from "lucide-react";
@@ -149,6 +150,158 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
   const [bogoLoading, setBogoLoading] = useState<boolean>(false);
   const [allBogoProducts, setAllBogoProducts] = useState<Product[]>([]);
 
+  /* ---------- Surprise (3-pair) state ---------- */
+  const [surpriseState, setSurpriseState] = useState<
+    "idle" | "spinning" | "revealed"
+  >("idle");
+  // Kept in a ref — the customer never sees which pair they got
+  const surpriseProductRef = useRef<Product | null>(null);
+  const surpriseSizeRef = useRef<string | null>(null);
+
+  const combinedProductsRef = useRef<Product[]>([]);
+  const surpriseTriggeredRef = useRef(false);
+  const latestSelectedProductRef = useRef<Product | null>(null);
+  const latestExtraPicksRef = useRef<PairPick[]>([]);
+
+  useEffect(() => {
+    latestSelectedProductRef.current = selectedProduct;
+  }, [selectedProduct]);
+
+  useEffect(() => {
+    latestExtraPicksRef.current = extraPicks;
+  }, [extraPicks]);
+
+  // Spin → (hidden) pick → celebration. The customer only ever sees the
+  // "revealed" celebration — never the product name or image.
+  useEffect(() => {
+    if (surpriseState !== "spinning") {
+      surpriseTriggeredRef.current = false;
+      return;
+    }
+    if (surpriseTriggeredRef.current) return;
+    surpriseTriggeredRef.current = true;
+
+    const sp = latestSelectedProductRef.current;
+    const ep = latestExtraPicksRef.current;
+
+    // Exclude the products already picked (1st + 2nd pair)
+    const pool = combinedProductsRef.current.filter(
+      (p) => p._id !== sp?._id && p._id !== ep[0]?.product?._id,
+    );
+    const finalPool = pool.length > 0 ? pool : combinedProductsRef.current;
+
+    if (finalPool.length === 0) {
+      toast.error("No surprise available right now");
+      setSurpriseState("idle");
+      return;
+    }
+
+    // Reveal after ~2.4s — pick product + random available size silently
+    const revealTimeout = setTimeout(() => {
+      const finalProduct =
+        finalPool[Math.floor(Math.random() * finalPool.length)];
+
+      const availableSizes = (finalProduct.sizes || []).filter(
+        (s) => !isSizeDisabled(finalProduct, s),
+      );
+
+      const chosenSize =
+        availableSizes.length > 0
+          ? String(
+              availableSizes[Math.floor(Math.random() * availableSizes.length)],
+            )
+          : null;
+
+      if (!chosenSize) {
+        toast.error("No size available for the surprise pair");
+        setSurpriseState("idle");
+        return;
+      }
+
+      surpriseProductRef.current = finalProduct;
+      surpriseSizeRef.current = chosenSize;
+      setSurpriseState("revealed");
+    }, 2400);
+
+    return () => {
+      clearTimeout(revealTimeout);
+    };
+  }, [surpriseState]);
+
+  // Confetti celebration on reveal
+  useEffect(() => {
+    if (surpriseState !== "revealed") return;
+    navigator.vibrate?.([60, 40, 140]);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const colors = [
+      "#fbbf24",
+      "#f472b6",
+      "#60a5fa",
+      "#34d399",
+      "#f87171",
+      "#a78bfa",
+      "#ffffff",
+    ];
+    const base = { zIndex: 9999, colors };
+
+    // 1) Center blast
+    confetti({
+      ...base,
+      particleCount: 140,
+      spread: 100,
+      startVelocity: 55,
+      scalar: 1.1,
+      origin: { x: 0.5, y: 0.55 },
+    });
+
+    // 2) Gold star burst
+    const t = setTimeout(() => {
+      confetti({
+        ...base,
+        particleCount: 70,
+        spread: 360,
+        startVelocity: 28,
+        gravity: 0.7,
+        ticks: 220,
+        shapes: ["star"],
+        colors: ["#fbbf24", "#fde68a", "#ffffff"],
+        scalar: 1.3,
+        origin: { x: 0.5, y: 0.4 },
+      });
+    }, 250);
+
+    // 3) Side cannons
+    const end = Date.now() + 2200;
+    let raf = 0;
+    const frame = () => {
+      confetti({
+        ...base,
+        particleCount: 3,
+        angle: 60,
+        spread: 60,
+        startVelocity: 60,
+        origin: { x: 0, y: 0.8 },
+      });
+      confetti({
+        ...base,
+        particleCount: 3,
+        angle: 120,
+        spread: 60,
+        startVelocity: 60,
+        origin: { x: 1, y: 0.8 },
+      });
+      if (Date.now() < end) raf = requestAnimationFrame(frame);
+    };
+    frame();
+
+    return () => {
+      clearTimeout(t);
+      cancelAnimationFrame(raf);
+      confetti.reset();
+    };
+  }, [surpriseState]);
+
   const handleProductClick = useCallback(
     (product: Product) => {
       setSelectedProduct(product);
@@ -276,6 +429,32 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
     goToCheckout,
   ]);
 
+  // Claim the (hidden) surprise 3rd pair and go to checkout
+  const claimSurprise = useCallback(() => {
+    const surpriseProduct = surpriseProductRef.current;
+    const surpriseSize = surpriseSizeRef.current;
+
+    if (!surpriseProduct || !surpriseSize || !selectedProduct || !selectedSize) {
+      return;
+    }
+
+    const picks: PairPick[] = [
+      extraPicks[0],
+      { product: surpriseProduct, size: surpriseSize },
+    ];
+
+    addToCart(selectedProduct, selectedSize, picks);
+    setIsBogoModalOpen(false);
+    setIsSizeModalOpen(false);
+
+    // Reset surprise state
+    setSurpriseState("idle");
+    surpriseProductRef.current = null;
+    surpriseSizeRef.current = null;
+
+    setTimeout(() => goToCheckout(), 100);
+  }, [selectedProduct, selectedSize, extraPicks, addToCart, goToCheckout]);
+
   const handleBogoScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -290,16 +469,203 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
     [bogoLoading, bogoHasMore, loadMoreBogoProducts],
   );
 
-  /* ---------- BOGO page (only used for 2 and 3 pair offers) ---------- */
+  /* ---------- BOGO page (2 and 3 pair offers) ---------- */
 
   const renderBogoPage = useCallback(
     (initialBogoProducts: Product[]) => {
       if (pairCount < 2) return null;
       if (!isBogoModalOpen || !selectedProduct) return null;
 
-      const combinedBogoProducts = [...initialBogoProducts, ...allBogoProducts];
+      const combinedBogoProducts = [
+        ...initialBogoProducts,
+        ...allBogoProducts,
+      ];
+      // Keep ref fresh so the surprise effect always sees the latest pool
+      combinedProductsRef.current = combinedBogoProducts;
+
+      /* ================= SURPRISE SCREEN (3rd pair) ================= */
+      if (surpriseState !== "idle") {
+        const spinning = surpriseState === "spinning";
+        return (
+          <div
+            className={`${display.className} fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-purple-700 via-fuchsia-600 to-orange-500 px-5 text-white`}
+          >
+            <style>{`
+              @keyframes sp-rays { to { transform: rotate(360deg); } }
+              @keyframes sp-shake {
+                0%,100% { transform: translate(0,0) rotate(0); }
+                20% { transform: translate(-3px,1px) rotate(-5deg); }
+                40% { transform: translate(3px,-2px) rotate(5deg); }
+                60% { transform: translate(-3px,2px) rotate(-4deg); }
+                80% { transform: translate(3px,-1px) rotate(4deg); }
+              }
+              @keyframes sp-charge { 0% { scale: 1; filter: brightness(1); } 100% { scale: 1.35; filter: brightness(1.5); } }
+              @keyframes sp-pop {
+                0% { transform: scale(0.2) rotate(-14deg); opacity: 0; }
+                55% { transform: scale(1.2) rotate(4deg); opacity: 1; }
+                100% { transform: scale(1) rotate(0); opacity: 1; }
+              }
+              @keyframes sp-rise { 0% { transform: translateY(24px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+              @keyframes sp-flash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
+              @keyframes sp-ring { 0% { transform: scale(0.5); opacity: 0.8; } 100% { transform: scale(2); opacity: 0; } }
+              @keyframes sp-float { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-12px) rotate(3deg); } }
+              @keyframes sp-twinkle { 0%,100% { transform: scale(0); opacity: 0; } 50% { transform: scale(1); opacity: 1; } }
+              @keyframes sp-shine { 0% { transform: translateX(-120%) skewX(-20deg); } 100% { transform: translateX(260%) skewX(-20deg); } }
+              @keyframes sp-glow { 0%,100% { box-shadow: 0 0 25px rgba(251,191,36,.55); } 50% { box-shadow: 0 0 60px rgba(251,191,36,1); } }
+              @keyframes sp-bar { from { width: 0%; } to { width: 100%; } }
+              @media (prefers-reduced-motion: reduce) { .sp-anim, .sp-anim * { animation: none !important; } }
+            `}</style>
+
+            {/* Rotating light rays */}
+            <div
+              className="sp-anim pointer-events-none absolute left-1/2 top-1/2 h-[220vmax] w-[220vmax] -translate-x-1/2 -translate-y-1/2 opacity-30"
+              style={{
+                background:
+                  "repeating-conic-gradient(from 0deg, rgba(255,255,255,0.55) 0deg 8deg, transparent 8deg 24deg)",
+                maskImage: "radial-gradient(circle, black 0%, transparent 55%)",
+                WebkitMaskImage:
+                  "radial-gradient(circle, black 0%, transparent 55%)",
+                animation: `sp-rays ${spinning ? 6 : 14}s linear infinite`,
+              }}
+            />
+
+            {/* Flash on reveal */}
+            {!spinning && (
+              <div
+                className="pointer-events-none absolute inset-0 z-20 bg-white"
+                style={{ animation: "sp-flash 0.7s ease-out forwards" }}
+              />
+            )}
+
+            {/* Twinkling sparkles */}
+            <div className="sp-anim pointer-events-none absolute inset-0">
+              {Array.from({ length: 14 }).map((_, i) => (
+                <span
+                  key={i}
+                  className="absolute text-xl"
+                  style={{
+                    left: `${(i * 53) % 96}%`,
+                    top: `${(i * 31 + 7) % 92}%`,
+                    animation: `sp-twinkle ${1.6 + (i % 4) * 0.4}s ease-in-out ${(i % 6) * 0.25}s infinite`,
+                  }}
+                >
+                  {i % 3 === 0 ? "✨" : i % 3 === 1 ? "⭐" : "✦"}
+                </span>
+              ))}
+            </div>
+
+            {spinning ? (
+              <div className="sp-anim relative z-10 flex flex-col items-center text-center">
+                <p className="mb-3 text-sm font-bold uppercase tracking-[0.3em] opacity-80">
+                  Mystery pair
+                </p>
+
+                <div className="relative flex h-64 w-64 items-center justify-center">
+                  <span
+                    className="absolute inset-4 rounded-full border-2 border-white/50"
+                    style={{ animation: "sp-ring 1.2s ease-out infinite" }}
+                  />
+                  <span
+                    className="absolute inset-4 rounded-full border-2 border-white/30"
+                    style={{ animation: "sp-ring 1.2s ease-out 0.6s infinite" }}
+                  />
+                  <div className="absolute h-44 w-44 rounded-full bg-yellow-300/40 blur-3xl" />
+                  <div style={{ animation: "sp-charge 2.4s ease-in forwards" }}>
+                    <div
+                      className="text-[9rem] leading-none drop-shadow-2xl"
+                      style={{ animation: "sp-shake 0.45s ease-in-out infinite" }}
+                    >
+                      🎁
+                    </div>
+                  </div>
+                </div>
+
+                <h2 className="mt-2 text-4xl font-extrabold leading-[0.95] tracking-[-0.04em] sm:text-5xl">
+                  Unwrapping your
+                  <br />
+                  surprise...
+                </h2>
+
+                <div className="mt-8 h-1.5 w-56 overflow-hidden rounded-full bg-white/25">
+                  <div
+                    className="h-full rounded-full bg-white"
+                    style={{ animation: "sp-bar 2.4s ease-in-out forwards" }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="sp-anim relative z-10 flex flex-col items-center text-center">
+                <div className="relative flex h-60 w-60 items-center justify-center">
+                  <span
+                    className="absolute inset-6 rounded-full border-2 border-white/60"
+                    style={{ animation: "sp-ring 1.8s ease-out infinite" }}
+                  />
+                  <span
+                    className="absolute inset-6 rounded-full border-2 border-white/40"
+                    style={{ animation: "sp-ring 1.8s ease-out 0.9s infinite" }}
+                  />
+                  <div className="absolute h-48 w-48 rounded-full bg-yellow-300/50 blur-3xl" />
+                  <div
+                    style={{
+                      animation: "sp-pop 0.9s cubic-bezier(0.34,1.56,0.64,1) both",
+                    }}
+                  >
+                    <div
+                      className="text-[9rem] leading-none drop-shadow-2xl"
+                      style={{
+                        animation: "sp-float 2.6s ease-in-out 0.9s infinite",
+                      }}
+                    >
+                      🎁
+                    </div>
+                  </div>
+                </div>
+
+                <h2
+                  className="text-5xl font-extrabold tracking-[-0.045em] sm:text-6xl"
+                  style={{ animation: "sp-rise 0.6s ease-out 0.35s both" }}
+                >
+                  Surprise
+                  <br />
+                  unlocked! 🎉
+                </h2>
+
+                <p
+                  className="mt-3 max-w-xs text-base font-semibold opacity-95"
+                  style={{ animation: "sp-rise 0.6s ease-out 0.55s both" }}
+                >
+                  A mystery 3rd pair is added to your order. You&apos;ll find
+                  out which one when it arrives 🚚
+                </p>
+
+                <button
+                  type="button"
+                  onClick={claimSurprise}
+                  style={{
+                    animation:
+                      "sp-rise 0.6s ease-out 0.8s both, sp-glow 2s ease-in-out 1.4s infinite",
+                  }}
+                  className="relative mt-7 flex h-14 w-72 items-center justify-center overflow-hidden rounded-full bg-neutral-950 text-lg font-extrabold tracking-[-0.03em] text-white transition-transform active:scale-95"
+                >
+                  <span className="relative z-10">Claim &amp; checkout 🎁</span>
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-y-0 left-0 w-1/3 bg-white/25"
+                    style={{
+                      animation: "sp-shine 2.2s ease-in-out 1.4s infinite",
+                    }}
+                  />
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      /* ================= NORMAL GRID (2nd pair picker) ================= */
       const filteredProducts = filteredBogoProducts(combinedBogoProducts);
       const slotLabel = ordinal(activeSlot + 2);
+      const totalUserSlots = pairCount === 3 ? 1 : pairCount - 1;
 
       return (
         <div
@@ -315,6 +681,14 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
               <br />
               {slotLabel} pair.
             </h2>
+
+            {pairCount === 3 && (
+              <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-purple-700">
+                <span className="text-lg">🎁</span>
+                Your 3rd pair is a surprise — pick the 2nd and let the magic
+                happen.
+              </p>
+            )}
 
             {/* First pair */}
             <div className="mt-6 flex items-center gap-3 rounded-3xl bg-neutral-100 p-3">
@@ -405,7 +779,7 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
           <div className="fixed bottom-0 left-0 w-full border-t border-neutral-200 bg-white/90 p-4 backdrop-blur-md duration-500 animate-in slide-in-from-bottom-full">
             <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
-                {extraPicks.map((pick, i) => (
+                {extraPicks.slice(0, totalUserSlots).map((pick, i) => (
                   <button
                     key={i}
                     type="button"
@@ -433,13 +807,21 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
                       ) : pick.product ? (
                         "Size?"
                       ) : (
-                        <span className="text-neutral-400">
-                          {pairCount === 2 ? "Free" : "Pick"}
-                        </span>
+                        <span className="text-neutral-400">Pick</span>
                       )}
                     </span>
                   </button>
                 ))}
+
+                {/* 3-pair surprise placeholder instead of slot 2 picker */}
+                {pairCount === 3 && (
+                  <div className="flex items-center gap-2 rounded-full border-2 border-dashed border-purple-400 bg-purple-50 p-1 pr-3 text-xs font-bold text-purple-700">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-lg">
+                      🎁
+                    </div>
+                    <span>Surprise</span>
+                  </div>
+                )}
               </div>
 
               <PillCTA
@@ -474,6 +856,8 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
       allBogoProducts,
       bogoLoading,
       handleBogoScroll,
+      surpriseState,
+      claimSurprise,
     ],
   );
 
@@ -504,8 +888,6 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
             <div className="mb-5 overflow-hidden rounded-[1.5rem] duration-500 animate-in fade-in zoom-in-95">
               <ProductCard2 product={currentProduct} noLink={true} />
             </div>
-
-           
 
             <h3 className="mb-1 line-clamp-1 text-2xl font-extrabold leading-none tracking-[-0.04em]">
               {currentProduct.productName}
@@ -567,6 +949,13 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
 
                 if (isSelectingFreeProduct) {
                   setIsSizeModalOpen(false);
+
+                  // 3-pair: after the 2nd pair is sized, kick off the surprise
+                  if (pairCount === 3 && activeSlot === 0) {
+                    setSurpriseState("spinning");
+                    return;
+                  }
+
                   if (!isLastSlot) {
                     setActiveSlot((s) => s + 1);
                   } else {
@@ -587,9 +976,11 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
               }}
             >
               {isSelectingFreeProduct
-                ? isLastSlot
-                  ? "Confirm & checkout"
-                  : "Confirm & next pair"
+                ? pairCount === 3 && activeSlot === 0
+                  ? "Unlock my surprise 🎁"
+                  : isLastSlot
+                    ? "Confirm & checkout"
+                    : "Confirm & next pair"
                 : pairCount === 1
                   ? "Confirm & checkout"
                   : "Confirm size"}

@@ -2,7 +2,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Truck, Check, Gift } from "lucide-react";
 import { ProductImage } from "./product-image";
 import { CartItem } from "@/lib/types/checkout";
-import { COD_CHARGE, type PairCount } from "@/lib/checkout-constants";
+import { type PairCount } from "@/lib/checkout-constants";
 import { ShoeCleanerAddon } from "./shoe-cleaner";
 import { PillCTA } from "./ui";
 
@@ -41,10 +41,41 @@ function PairCard({
       </div>
       <span
         className={`absolute left-4 top-4 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-          free ? "bg-blue-600 text-white" : "bg-white/90 text-neutral-950 backdrop-blur"
+          free
+            ? "bg-blue-600 text-white"
+            : "bg-white/90 text-neutral-950 backdrop-blur"
         }`}
       >
         {label}
+      </span>
+    </div>
+  );
+}
+
+/** Locked, no-details card shown for the surprise 3rd pair. */
+function MysteryPairCard({ index }: { index: number }) {
+  return (
+    <div
+      style={{ animationDelay: `${index * 80}ms`, animationFillMode: "both" }}
+      className="relative rounded-[1.75rem] bg-gradient-to-br from-purple-100 via-pink-100 to-orange-100 p-2.5 duration-500 animate-in fade-in slide-in-from-bottom-3"
+    >
+      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[1.25rem] bg-white/50">
+        {/* subtle pulsing rings */}
+        <span className="absolute inset-4 rounded-full border-2 border-purple-300/60 animate-ping [animation-duration:2.5s]" />
+        <span className="relative text-6xl" role="img" aria-label="surprise gift">
+          🎁
+        </span>
+      </div>
+      <div className="mt-3 px-1.5 pb-1">
+        <p className="truncate text-sm font-extrabold leading-tight tracking-tight">
+          Mystery pair
+        </p>
+        <p className="mt-0.5 text-xs font-medium text-neutral-500">
+          Revealed on delivery
+        </p>
+      </div>
+      <span className="absolute left-4 top-4 rounded-full bg-purple-600 px-2.5 py-1 text-[11px] font-semibold text-white">
+        Surprise
       </span>
     </div>
   );
@@ -76,7 +107,9 @@ function Option({
     >
       <div
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
-          active ? "scale-100 bg-blue-600" : "scale-90 border-2 border-neutral-300"
+          active
+            ? "scale-100 bg-blue-600"
+            : "scale-90 border-2 border-neutral-300"
         }`}
       >
         {active && (
@@ -105,7 +138,6 @@ function Option({
 export function PaymentStep({
   mainProduct,
   freeProduct,
-  thirdProduct,
   pairCount = 2,
   freeSocksOffer,
   shoeCleanerAddon,
@@ -115,11 +147,11 @@ export function PaymentStep({
   setShippingMethod,
   onlineDeliveryLabel,
   codDeliveryLabel,
+  codSavings,
   onContinue,
 }: {
   mainProduct: CartItem;
   freeProduct?: CartItem | null;
-  thirdProduct?: CartItem | null;
   pairCount?: PairCount;
   freeSocksOffer: boolean;
   shoeCleanerAddon: boolean;
@@ -129,6 +161,7 @@ export function PaymentStep({
   setShippingMethod: (v: "online" | "cod") => void;
   onlineDeliveryLabel: string;
   codDeliveryLabel: string;
+  codSavings: number;
   onContinue: () => void;
 }) {
   return (
@@ -157,14 +190,8 @@ export function PaymentStep({
             />
           )}
 
-          {pairCount === 3 && thirdProduct && (
-            <PairCard
-              index={2}
-              product={thirdProduct}
-              label="Pair 3"
-              fallbackName="Pair 3"
-            />
-          )}
+          {/* 3rd pair is always a surprise — never render its details */}
+          {pairCount === 3 && <MysteryPairCard index={2} />}
         </div>
 
         {freeSocksOffer && (
@@ -198,7 +225,7 @@ export function PaymentStep({
             id="online"
             active={shippingMethod === "online"}
             title="Prepaid"
-            tag={`Save ₹${COD_CHARGE}`}
+            tag={codSavings > 0 ? `Save ₹${codSavings}` : "Recommended"}
             tagClass="text-blue-700"
             note={
               <>
@@ -211,7 +238,7 @@ export function PaymentStep({
             id="cod"
             active={shippingMethod === "cod"}
             title="Cash on delivery"
-            tag={`+₹${COD_CHARGE}`}
+            tag={codSavings > 0 ? `+₹${codSavings}` : "Pay on delivery"}
             tagClass="text-neutral-500"
             note={<>Arrives {codDeliveryLabel}</>}
           />
