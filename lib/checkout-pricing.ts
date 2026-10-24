@@ -1,11 +1,13 @@
 // lib/checkout-pricing.ts
 import {
   BASE_PRICE,
-  COD_CHARGE,
   SHOE_CLEANER_PRICE,
+  OFFER_CONFIG,
+  toPairCount,
+  getOfferShipping,
+  getCodCharge,
+  type PairCount,
 } from "@/lib/checkout-constants";
-
-export const COD_ADVANCE_AMOUNT = 300;
 
 export type CartLineInput = {
   productId: string;
@@ -14,12 +16,20 @@ export type CartLineInput = {
 };
 
 export type PricedCart = {
+  pairCount: PairCount;
   subtotal: number;
+  /** Prepaid per-pair shipping (0 for COD). */
+  offerShipping: number;
+  /** Per-pair COD charge (0 for prepaid). */
+  codCharge: number;
+  /** Combined: offerShipping + codCharge. Kept for backward compat. */
   shippingCharge: number;
   cleanerCharge: number;
   totalAmount: number;
   isCod: boolean;
+  /** What the customer pays right now. 0 for COD. */
   paymentAmount: number;
+  /** What the customer pays on delivery. Full total for COD, 0 for prepaid. */
   remainingAmount: number;
   items: Array<{
     productId: string;
@@ -34,10 +44,21 @@ export type PricedCart = {
 export async function priceCart(
   sanity: any,
   lines: CartLineInput[],
-  opts: { shippingMethod: "online" | "cod"; addShoeCleaner: boolean }
+  opts: {
+    shippingMethod: "online" | "cod";
+    addShoeCleaner: boolean;
+    /** Customer's state — decides Kerala vs outside-Kerala pricing. */
+    state?: string;
+    /** Optional override; otherwise inferred from lines.length. */
+    pairCount?: PairCount;
+  },
 ): Promise<PricedCart> {
   if (!lines.length) throw new Error("Cart is empty");
-  if (lines.length > 2) throw new Error("Max 2 items per order");
+
+  const pairCount: PairCount = toPairCount(opts.pairCount ?? lines.length);
+  if (lines.length !== pairCount) {
+    throw new Error("Cart does not match the selected pair offer");
+  }
 
   const ids = lines.map((l) => l.productId);
 
@@ -48,10 +69,8 @@ export async function priceCart(
       price,
       "rawImage": coalesce(images[0].asset->url, "")
     }`,
-    { ids }
+    { ids },
   );
-
-  console.log("[priceCart] products:", JSON.stringify(products));
 
   const byId = new Map(products.map((p: any) => [p._id, p]));
 
@@ -76,7 +95,7 @@ export async function priceCart(
 
   if (missing.length) {
     const err: any = new Error(
-      `Some products are no longer available: ${missing.join(", ")}`
+      `Some products are no longer available: ${missing.join(", ")}`,
     );
     err.code = "PRODUCT_NOT_FOUND";
     err.missingProductIds = missing;
@@ -85,19 +104,38 @@ export async function priceCart(
 
   const items = built as NonNullable<(typeof built)[number]>[];
 
+  // Premiums — never charged on the surprise 3rd pair.
   const pair1Extra = Math.max(0, items[0].price - BASE_PRICE);
-  const pair2Extra = items[1] ? Math.max(0, items[1].price - BASE_PRICE) : 0;
-  const subtotal = BASE_PRICE + pair1Extra + pair2Extra;
+  const pair2Extra =
+    pairCount >= 2 && items[1]
+      ? Math.max(0, items[1].price - BASE_PRICE)
+      : 0;
+  const pair3Extra = 0; // 3rd pair is a free surprise within the base offer
+
+  const offer = OFFER_CONFIG[pairCount];
+  const subtotal = offer.basePrice + pair1Extra + pair2Extra + pair3Extra;
 
   const isCod = opts.shippingMethod === "cod";
-  const shippingCharge = isCod ? COD_CHARGE : 0;
+
+  // PREPAID: region shipping. COD: no shipping, per-pair COD charge instead.
+  const offerShipping = isCod
+    ? 0
+    : getOfferShipping(pairCount, opts.state);
+  const codCharge = isCod ? getCodCharge(pairCount, opts.state) : 0;
+  const shippingCharge = offerShipping + codCharge;
+
   const cleanerCharge = opts.addShoeCleaner ? SHOE_CLEANER_PRICE : 0;
   const totalAmount = subtotal + shippingCharge + cleanerCharge;
-  const paymentAmount = isCod ? COD_ADVANCE_AMOUNT : totalAmount;
-  const remainingAmount = isCod ? totalAmount - COD_ADVANCE_AMOUNT : 0;
+
+  // No COD advance — full amount is paid on delivery.
+  const paymentAmount = isCod ? 0 : totalAmount;
+  const remainingAmount = isCod ? totalAmount : 0;
 
   return {
+    pairCount,
     subtotal,
+    offerShipping,
+    codCharge,
     shippingCharge,
     cleanerCharge,
     totalAmount,

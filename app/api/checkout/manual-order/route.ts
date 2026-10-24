@@ -4,11 +4,12 @@ import { createClient } from "@sanity/client";
 import { randomUUID } from "crypto";
 import {
   BASE_PRICE,
-  COD_CHARGE,
-  COD_ADVANCE_AMOUNT,
   SHOE_CLEANER_PRICE,
   OFFER_CONFIG,
   isInOffer,
+  toPairCount,
+  getOfferShipping,
+  getCodCharge,
 } from "@/lib/checkout-constants";
 
 export const runtime = "nodejs";
@@ -53,11 +54,8 @@ export async function POST(req: Request) {
     const file = form.get("screenshot");
     const rawPayload = form.get("payload");
 
-    if (!(file instanceof File) || typeof rawPayload !== "string") {
+    if (typeof rawPayload !== "string") {
       return fail("Invalid request");
-    }
-    if (file.size === 0 || file.size > MAX_BYTES) {
-      return fail("Screenshot must be under 8 MB");
     }
 
     let body: any;
@@ -68,14 +66,23 @@ export async function POST(req: Request) {
     }
 
     // ---------- Validate input ----------
-    const pairCount = body.pairCount;
-    if (pairCount !== 2 && pairCount !== 3) return fail("Invalid offer");
-    if (!Array.isArray(body.lines) || body.lines.length !== pairCount) {
-      return fail("Invalid items");
-    }
+    const pairCount = toPairCount(body.pairCount); // 1 | 2 | 3
     const shippingMethod = body.shippingMethod;
     if (shippingMethod !== "online" && shippingMethod !== "cod") {
       return fail("Invalid shipping method");
+    }
+    const isCod = shippingMethod === "cod";
+
+    // Screenshot only required for prepaid.
+    if (!isCod) {
+      if (!(file instanceof File)) return fail("Payment screenshot required");
+      if (file.size === 0 || file.size > MAX_BYTES) {
+        return fail("Screenshot must be under 8 MB");
+      }
+    }
+
+    if (!Array.isArray(body.lines) || body.lines.length !== pairCount) {
+      return fail("Invalid items");
     }
 
     const cd = body.customerDetails || {};
@@ -104,9 +111,14 @@ export async function POST(req: Request) {
     const utr = body.utr ? clean(body.utr, 12) : "";
     if (utr && !/^\d{12}$/.test(utr)) return fail("UTR must be 12 digits");
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const mime = detectImage(buffer);
-    if (!mime) return fail("Upload a JPG, PNG or WebP screenshot");
+    // Decode/validate the image only when one was sent.
+    let buffer: Buffer | null = null;
+    let mime: string | null = null;
+    if (!isCod && file instanceof File) {
+      buffer = Buffer.from(await file.arrayBuffer());
+      mime = detectImage(buffer);
+      if (!mime) return fail("Upload a JPG, PNG or WebP screenshot");
+    }
 
     // ---------- Prices come from the database ----------
     const ids: string[] = body.lines.map((l: any) => String(l.productId));
@@ -141,11 +153,19 @@ export async function POST(req: Request) {
         (s: any) => Number(s) === size,
       );
       if (!Number.isFinite(size) || !sizeOk || disabled) {
-        return fail(`Size ${line.selectedSize} is unavailable for ${p.productName}`);
+        return fail(
+          `Size ${line.selectedSize} is unavailable for ${p.productName}`,
+        );
       }
 
       const price = p.price || BASE_PRICE;
-      extras += Math.max(0, price - BASE_PRICE);
+
+      // The 3rd pair in a 3-pair offer is a free surprise — its value is
+      // already included in the ₹1500 base offer. No premium is charged.
+      const isSurpriseThird = pairCount === 3 && i === 2;
+      if (!isSurpriseThird) {
+        extras += Math.max(0, price - BASE_PRICE);
+      }
 
       items.push({
         _key: randomUUID(),
@@ -162,31 +182,42 @@ export async function POST(req: Request) {
           : {}),
         size,
         price,
+        // Only the 2nd pair in a 2-pair offer is truly "free".
         isFreeItem: pairCount === 2 && i === 1,
       });
     }
 
-    const offer = OFFER_CONFIG[pairCount as 2 | 3];
-    const addCleaner = !!body.addShoeCleaner && !!settings?.shoeCleanerAddon;
-    const isCod = shippingMethod === "cod";
+    const offer = OFFER_CONFIG[pairCount];
+    const addCleaner =
+      !!body.addShoeCleaner && !!settings?.shoeCleanerAddon;
 
+    // ----- Region-aware pricing (matches the client exactly) -----
     const subtotal = offer.basePrice + extras;
-    const offerShipping = offer.shippingPerPair * pairCount;
-    const shippingCharge = offerShipping + (isCod ? COD_CHARGE : 0);
+
+    // PREPAID: region shipping applies. COD: no shipping, per-pair COD fee.
+    const offerShipping = isCod
+      ? 0
+      : getOfferShipping(pairCount, customer.state);
+    const codCharge = isCod ? getCodCharge(pairCount, customer.state) : 0;
+    const shippingCharge = offerShipping + codCharge;
+
     const cleanerCharge = addCleaner ? SHOE_CLEANER_PRICE : 0;
     const totalAmount = subtotal + shippingCharge + cleanerCharge;
-    const advancePaid = isCod ? COD_ADVANCE_AMOUNT : totalAmount;
-    const remainingAmount = isCod ? totalAmount - COD_ADVANCE_AMOUNT : 0;
 
-    // Price changed since the QR was shown
-    if (Number(body.clientAmount) !== advancePaid) {
+    // COD → nothing paid now, everything on delivery.
+    // Prepaid → full amount paid now, nothing on delivery.
+    const advancePaid = isCod ? 0 : totalAmount;
+    const remainingAmount = isCod ? totalAmount : 0;
+
+    // The client always sends the FULL total, even for COD.
+    if (Number(body.clientAmount) !== totalAmount) {
       return fail(
         "Prices changed. Please refresh the page and pay the updated amount.",
         409,
       );
     }
 
-    // Same UTR already used
+    // Same UTR already used (prepaid only)
     if (utr) {
       const dup = await sanity.fetch(
         `count(*[_type == "order" && utr == $utr])`,
@@ -197,12 +228,17 @@ export async function POST(req: Request) {
       }
     }
 
-    // ---------- Upload screenshot, then create order ----------
-    const asset = await sanity.assets.upload("image", buffer, {
-      filename: `payment-${Date.now()}.${mime.split("/")[1]}`,
-      contentType: mime,
-    });
+    // ---------- Upload screenshot (prepaid only) ----------
+    let screenshotRef: string | null = null;
+    if (!isCod && buffer && mime) {
+      const asset = await sanity.assets.upload("image", buffer, {
+        filename: `payment-${Date.now()}.${mime.split("/")[1]}`,
+        contentType: mime,
+      });
+      screenshotRef = asset._id;
+    }
 
+    // ---------- Create order ----------
     const orderId = `FX-${Date.now().toString(36).toUpperCase()}${Math.random()
       .toString(36)
       .slice(2, 5)
@@ -227,17 +263,20 @@ export async function POST(req: Request) {
       pairCount,
       subtotal,
       shippingCharge,
+      codCharge, // stored separately for reporting
       totalAmount,
       advancePaid,
       remainingAmount,
       expectedDeliveryLabel: clean(body.expectedDeliveryLabel, 100),
-      paymentMethod: "manual_upi",
+      paymentMethod: isCod ? "cod" : "manual_upi",
       utr: utr || undefined,
-      paymentScreenshot: {
-        _type: "image",
-        asset: { _type: "reference", _ref: asset._id },
-      },
-      paymentStatus: "verifying",
+      ...(screenshotRef && {
+        paymentScreenshot: {
+          _type: "image",
+          asset: { _type: "reference", _ref: screenshotRef },
+        },
+      }),
+      paymentStatus: isCod ? "pending" : "verifying",
       fulfillmentStatus: "pending",
       createdAt: new Date().toISOString(),
     });
