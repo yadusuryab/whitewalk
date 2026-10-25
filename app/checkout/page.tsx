@@ -24,6 +24,7 @@ import {
   toPairCount,
   getOfferShipping,
   getCodCharge,
+  getOutsideSurcharge,
   type PairCount,
 } from "@/lib/checkout-constants";
 import { StepProgress } from "@/components/checkout/step-progress";
@@ -143,6 +144,16 @@ export default function CheckoutPage() {
   // Applied values — only ONE of these is non-zero at a time.
   const offerShipping = isCod ? 0 : prepaidShipping;
   const codCharge = isCod ? codFee : 0;
+
+  // Extra for being outside Kerala (display split only; total is unchanged).
+  const outsideSurcharge = getOutsideSurcharge(
+    pairCount,
+    customerDetails.state,
+    isCod,
+  );
+  // Kerala-rate portions shown on the normal row.
+  const baseOfferShipping = offerShipping - (isCod ? 0 : outsideSurcharge);
+  const baseCodCharge = codCharge - (isCod ? outsideSurcharge : 0);
 
   const shippingCharge = offerShipping + codCharge;
   const cleanerCharge =
@@ -428,8 +439,9 @@ export default function CheckoutPage() {
             pair1Extra={pair1Extra}
             pair2Extra={pair2Extra}
             pair3Extra={pair3Extra}
-            offerShipping={offerShipping}
-            codCharge={codCharge}
+            offerShipping={baseOfferShipping}
+            codCharge={baseCodCharge}
+            outsideSurcharge={outsideSurcharge}
             codSavings={codSavings}
             freeSocksOffer={freeSocksOffer}
             shoeCleanerAddon={shoeCleanerAddon}

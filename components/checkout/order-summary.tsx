@@ -22,6 +22,7 @@ export function OrderSummary({
   pair3Extra = 0,
   offerShipping = 0,
   codCharge = 0,
+  outsideSurcharge = 0,
   codSavings = 0,
   freeSocksOffer,
   shoeCleanerAddon,
@@ -35,8 +36,9 @@ export function OrderSummary({
   pair1Extra: number;
   pair2Extra: number;
   pair3Extra?: number;
-  offerShipping?: number;
-  codCharge?: number;
+  offerShipping?: number; // Kerala-rate shipping (prepaid only)
+  codCharge?: number; // Kerala-rate COD charge (COD only)
+  outsideSurcharge?: number; // extra for outside Kerala, shown separately
   codSavings?: number;
   freeSocksOffer: boolean;
   shoeCleanerAddon: boolean;
@@ -48,7 +50,12 @@ export function OrderSummary({
   // Only one of these is non-zero at a time (see checkout page pricing block):
   //   Prepaid → offerShipping set, codCharge = 0
   //   COD     → offerShipping = 0, codCharge set
+  // Both are the BASE (Kerala) amounts; the outside-Kerala extra is separate.
   const shippingAndHandling = offerShipping + codCharge;
+
+  // Hide the base row only when it's ₹0 but a surcharge exists,
+  // so we don't show "Free" right above "Outside Kerala charge ₹50".
+  const showShippingRow = shippingAndHandling > 0 || outsideSurcharge === 0;
 
   return (
     <div className="mt-8 rounded-[1.75rem] bg-neutral-100 p-5">
@@ -95,16 +102,26 @@ export function OrderSummary({
           </div>
         )}
 
-        {/* Shipping & handling — combines prepaid shipping OR COD charge
-            into a single row. Shows FREE for prepaid with no shipping. */}
-        <div className={row}>
-          <span className={muted}>Shipping & handling</span>
-          {shippingAndHandling === 0 ? (
-            <span className="font-semibold text-blue-700">Free</span>
-          ) : (
-            <span>₹{shippingAndHandling}</span>
-          )}
-        </div>
+        {/* Shipping & handling — prepaid shipping OR COD charge (Kerala rate).
+            Shows FREE for prepaid with no shipping. */}
+        {showShippingRow && (
+          <div className={row}>
+            <span className={muted}>Shipping & handling</span>
+            {shippingAndHandling === 0 ? (
+              <span className="font-semibold text-blue-700">Free</span>
+            ) : (
+              <span>₹{shippingAndHandling}</span>
+            )}
+          </div>
+        )}
+
+        {/* Outside Kerala — extra on top of the Kerala rate, shown separately. */}
+        {outsideSurcharge > 0 && (
+          <div className={row}>
+            <span className={muted}>Outside Kerala charge</span>
+            <span>+₹{outsideSurcharge}</span>
+          </div>
+        )}
 
         <div className="mt-1 flex items-center gap-3 rounded-2xl bg-white p-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600/10 text-blue-700">

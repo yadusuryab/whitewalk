@@ -105,6 +105,23 @@ export const getCodCharge = (pairCount: PairCount, state?: string) => {
 };
 
 // ------------------------------------------------------------------
+// Outside-Kerala surcharge — the EXTRA vs Kerala rates, for display only.
+// Prepaid: outside shipping − Kerala shipping.
+// COD:     outside COD charge − Kerala COD charge.
+// Does not change the total (server sum is identical).
+// ------------------------------------------------------------------
+export const getOutsideSurcharge = (
+  pairCount: PairCount,
+  state: string | undefined,
+  isCod: boolean,
+) => {
+  if (isKerala(state)) return 0;
+  const k = isCod ? COD_CHARGE_PER_PAIR.kerala : SHIPPING_PER_PAIR.kerala;
+  const o = isCod ? COD_CHARGE_PER_PAIR.outside : SHIPPING_PER_PAIR.outside;
+  return (o[pairCount] - k[pairCount]) * pairCount;
+};
+
+// ------------------------------------------------------------------
 // SERVER ROUTE: /api/checkout/manual-order
 // It must use:
 //   const isCod = payload.shippingMethod === "cod";
