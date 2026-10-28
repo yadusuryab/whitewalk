@@ -13,8 +13,8 @@ const display = Inter_Tight({
 
 // Edit these to match your live offer
 const HREF = "/offer?pairs=2";
-const PRICE = 1499;
-const MRP = 1998; // set to 0 to hide the strike-through and savings
+const PRICE = 1299;
+const MRP = 2999; // set to 0 to hide the strike-through and savings
 const NOTE = "Mix any two styles. Pay once, at checkout.";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
