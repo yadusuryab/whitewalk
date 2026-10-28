@@ -111,15 +111,17 @@ export default function CheckoutPage() {
   // ---------- Pricing (display only; server recomputes) ----------
   const mainProduct = cartItems[0];
   const freeProduct = mainProduct?.freeProduct;
-  // The actual mystery shoe — used ONLY in the order payload, never displayed.
-  const thirdProduct = (mainProduct as any)?.thirdProduct;
 
   // 1, 2 or 3 pairs. Carts saved before pairCount existed fall back to 2.
   const pairCount: PairCount = toPairCount((mainProduct as any)?.pairCount);
   const offer = OFFER_CONFIG[pairCount];
 
-  // The 3rd pair is always a hidden surprise — customer never sees it.
-  const isMysteryThird = pairCount === 3;
+  // 3rd pair is a random pair: no product is stored, the customer only gives
+  // the size. The warehouse picks the pair based on stock for that size.
+  const isRandomThird = pairCount === 3;
+  const randomThirdSize: string | null = isRandomThird
+    ? ((mainProduct as any)?.thirdPairSize ?? null)
+    : null;
 
   const pair1Extra = Math.max(
     0,
@@ -129,7 +131,7 @@ export default function CheckoutPage() {
     pairCount >= 2
       ? Math.max(0, (freeProduct?.price || BASE_PRICE) - BASE_PRICE)
       : 0;
-  // Surprise 3rd pair — its value is already in the 1500 base offer price.
+  // Random 3rd pair — its value is already in the base offer price.
   // No premium is charged because the customer didn't choose it.
   const pair3Extra = 0;
 
@@ -247,6 +249,11 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (isRandomThird && !randomThirdSize) {
+      setFormErrors(["Select a size for your 3rd pair and try again."]);
+      return;
+    }
+
     setIsLoading(true);
     setFormErrors([]);
 
@@ -269,18 +276,12 @@ export default function CheckoutPage() {
           isFreeItem: pairCount === 2,
         });
       }
-      // Surprise shoe is still added to the order — just hidden from UI.
-      if (pairCount === 3 && thirdProduct) {
-        lines.push({
-          productId: thirdProduct._id,
-          selectedSize: thirdProduct.selectedSize,
-          isFreeItem: false,
-        });
-      }
 
       const payload = {
         lines,
         pairCount,
+        // 3rd pair: random pair, warehouse picks by stock. Only size is known.
+        randomThird: isRandomThird ? { size: randomThirdSize } : null,
         customerDetails,
         shippingMethod,
         addShoeCleaner: shoeCleanerAddon && addShoeCleaner,
@@ -380,6 +381,7 @@ export default function CheckoutPage() {
                 mainProduct={mainProduct}
                 freeProduct={pairCount >= 2 ? freeProduct : undefined}
                 pairCount={pairCount}
+                randomThirdSize={randomThirdSize}
                 freeSocksOffer={freeSocksOffer}
                 shoeCleanerAddon={shoeCleanerAddon}
                 addShoeCleaner={addShoeCleaner}
@@ -391,6 +393,7 @@ export default function CheckoutPage() {
                 codSavings={codSavings}
                 onContinue={goToDetailsStep}
               />
+
             </>
           ) : showPay && !isCod ? (
             <div>

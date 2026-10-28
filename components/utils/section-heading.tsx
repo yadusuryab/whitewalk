@@ -31,7 +31,7 @@ const SHeading = ({
 }: SHeadingProps) => {
   return (
     <div
-      className={`w-full border-b-2 border-foreground pb-5 md:pb-8 ${
+      className={`w-full border- border-foreground pb-5 md:pb-8 ${
         centered ? "text-center" : "text-left"
       }`}
     >

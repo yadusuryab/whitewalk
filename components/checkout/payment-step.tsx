@@ -52,30 +52,32 @@ function PairCard({
   );
 }
 
-/** Locked, no-details card shown for the surprise 3rd pair. */
-function MysteryPairCard({ index }: { index: number }) {
+/** Random 3rd pair: no product shown, only the size the customer chose. */
+function RandomPairCard({
+  index,
+  size,
+}: {
+  index: number;
+  size?: string | null;
+}) {
   return (
     <div
       style={{ animationDelay: `${index * 80}ms`, animationFillMode: "both" }}
-      className="relative rounded-[1.75rem] bg-gradient-to-br from-purple-100 via-pink-100 to-orange-100 p-2.5 duration-500 animate-in fade-in slide-in-from-bottom-3"
+      className="relative rounded-[1.75rem] bg-neutral-100 p-2.5 duration-500 animate-in fade-in slide-in-from-bottom-3"
     >
-      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[1.25rem] bg-white/50">
-        {/* subtle pulsing rings */}
-        <span className="absolute inset-4 rounded-full border-2 border-purple-300/60 animate-ping [animation-duration:2.5s]" />
-        <span className="relative text-6xl" role="img" aria-label="surprise gift">
-          🎁
-        </span>
+      <div className="flex aspect-square items-center justify-center overflow-hidden rounded-[1.25rem] bg-white text-6xl font-extrabold text-neutral-300">
+        ?
       </div>
       <div className="mt-3 px-1.5 pb-1">
         <p className="truncate text-sm font-extrabold leading-tight tracking-tight">
-          Mystery pair
+          Random pair
         </p>
         <p className="mt-0.5 text-xs font-medium text-neutral-500">
-          Revealed on delivery
+          Size {size || "N/A"}
         </p>
       </div>
-      <span className="absolute left-4 top-4 rounded-full bg-purple-600 px-2.5 py-1 text-[11px] font-semibold text-white">
-        Surprise
+      <span className="absolute left-4 top-4 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-neutral-950 backdrop-blur">
+        Pair 3
       </span>
     </div>
   );
@@ -139,6 +141,7 @@ export function PaymentStep({
   mainProduct,
   freeProduct,
   pairCount = 2,
+  randomThirdSize,
   freeSocksOffer,
   shoeCleanerAddon,
   addShoeCleaner,
@@ -153,6 +156,7 @@ export function PaymentStep({
   mainProduct: CartItem;
   freeProduct?: CartItem | null;
   pairCount?: PairCount;
+  randomThirdSize?: string | null;
   freeSocksOffer: boolean;
   shoeCleanerAddon: boolean;
   addShoeCleaner: boolean;
@@ -190,8 +194,10 @@ export function PaymentStep({
             />
           )}
 
-          {/* 3rd pair is always a surprise — never render its details */}
-          {pairCount === 3 && <MysteryPairCard index={2} />}
+          {/* 3rd pair is random — only the size is shown */}
+          {pairCount === 3 && (
+            <RandomPairCard index={2} size={randomThirdSize} />
+          )}
         </div>
 
         {freeSocksOffer && (

@@ -146,7 +146,7 @@ function ProductList({ price, pairCount = 2 }: ProductListProps) {
   }
 
   return (
-    <div className="px-4">
+    <div className="px-">
       <div className="md:mx-24">
         <SHeading title={heading} size="lg" nolink={true} />
       </div>
