@@ -16,8 +16,8 @@ const display = Inter_Tight({
 interface Review {
   _id: string;
   customerName: string;
-  rating: number;
-  reviewText?: string;
+  rating: number; // 0 = no rating (image-only review)
+  reviewText: string;
   images: string[];
   isVerifiedPurchase: boolean;
   createdAt: string;
@@ -79,14 +79,15 @@ function PillButton({
 
 /* ---------- Stars ---------- */
 
-function Stars({ value, size = 16 }: { value: number; size?: number }) {
-  const pct = Math.max(0, Math.min(5, value)) * 20;
+function Stars({ value, size = 16 }: { value?: number; size?: number }) {
+  const v = typeof value === "number" && !Number.isNaN(value) ? value : 0;
+  const pct = Math.max(0, Math.min(5, v)) * 20;
   return (
     <span
       className="relative inline-block leading-none"
       style={{ fontSize: size }}
       role="img"
-      aria-label={`${value.toFixed(1)} out of 5 stars`}
+      aria-label={`${v.toFixed(1)} out of 5 stars`}
     >
       <span className="text-neutral-200">★★★★★</span>
       <span
@@ -110,8 +111,9 @@ function Summary({
   onFilter: (n: number | null) => void;
   onWrite: () => void;
 }) {
-  const total = reviews.length;
-  const avg = total ? reviews.reduce((s, r) => s + r.rating, 0) / total : 0;
+  const rated = reviews.filter((r) => r.rating > 0);
+  const total = rated.length;
+  const avg = total ? rated.reduce((s, r) => s + r.rating, 0) / total : 0;
 
   return (
     <aside className="lg:sticky lg:top-20 lg:self-start">
@@ -197,11 +199,14 @@ function ReviewItem({
   const [expanded, setExpanded] = useState(false);
   const text = review.reviewText ?? "";
   const long = text.length > TEXT_LIMIT;
-  const date = new Date(review.createdAt).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const parsed = new Date(review.createdAt);
+  const date = Number.isNaN(parsed.getTime())
+    ? ""
+    : parsed.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
 
   return (
     <article className="border-b border-neutral-200 py-6 first:pt-0 last:border-b-0">
@@ -210,13 +215,13 @@ function ReviewItem({
           aria-hidden
           className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-950 text-base font-extrabold text-white"
         >
-          {review.customerName.charAt(0).toUpperCase()}
+          {(review.customerName || "C").charAt(0).toUpperCase()}
         </span>
         <div className="min-w-0">
           <p className="truncate text-lg font-extrabold leading-none tracking-[-0.035em]">
             {review.customerName}
           </p>
-          <p className="mt-1 text-xs font-medium text-neutral-500">{date}</p>
+          {date && <p className="mt-1 text-xs font-medium text-neutral-500">{date}</p>}
         </div>
         {review.isVerifiedPurchase && (
           <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-600/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-blue-700">
@@ -226,9 +231,11 @@ function ReviewItem({
         )}
       </div>
 
-      <div className="mt-4">
-        <Stars value={review.rating} size={18} />
-      </div>
+      {review.rating > 0 && (
+        <div className="mt-4">
+          <Stars value={review.rating} size={18} />
+        </div>
+      )}
 
       {text && (
         <p className="mt-3 whitespace-pre-line text-base font-medium leading-relaxed text-neutral-700">
@@ -405,8 +412,16 @@ export default function ReviewsPage({ shoeId }: { shoeId?: string }) {
         shoeId ? { shoeId } : {}
       );
       setReviews(
-        data.map((r) => ({
-          ...r,
+        (data ?? []).map((r) => ({
+          _id: r._id,
+          customerName:
+            typeof r.customerName === "string" && r.customerName.trim()
+              ? r.customerName.trim()
+              : "Customer",
+          rating: typeof r.rating === "number" ? r.rating : 0,
+          reviewText: typeof r.reviewText === "string" ? r.reviewText : "",
+          isVerifiedPurchase: !!r.isVerifiedPurchase,
+          createdAt: r.createdAt ?? "",
           images: (r.images ?? []).filter(Boolean),
         }))
       );
