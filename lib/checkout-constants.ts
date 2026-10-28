@@ -9,14 +9,14 @@ export const COD_DELIVERY_MAX_DAYS = 7;
 export type PairCount = 1 | 2 | 3;
 
 // 1 pair:  999
-// 2 pairs: 1499
+// 2 pairs: 1299
 // 3 pairs: 1500
 export const OFFER_CONFIG: Record<
   PairCount,
   { basePrice: number; shippingPerPair: number }
 > = {
-  1: { basePrice: 999, shippingPerPair: 0 },
-  2: { basePrice: 1499, shippingPerPair: 0 },
+  1: { basePrice: 899, shippingPerPair: 100 },
+  2: { basePrice: 1299, shippingPerPair: 100 },
   3: { basePrice: 1500, shippingPerPair: 100 },
 };
 
@@ -69,8 +69,8 @@ export const buildUpiLink = ({
 // Shipping — charged PER PAIR, by region. Only applies on PREPAID.
 // ------------------------------------------------------------------
 export const SHIPPING_PER_PAIR = {
-  kerala: { 1: 0, 2: 0, 3: 100 },
-  outside: { 1: 50, 2: 50, 3: 150 },
+  kerala: { 1: 100, 2: 100, 3: 100 },
+  outside: { 1: 150, 2: 150, 3: 150 },
 } as const;
 
 // Blank state (before the customer fills the form in) → treated as Kerala.
