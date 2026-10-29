@@ -81,8 +81,19 @@ export async function POST(req: Request) {
       }
     }
 
-    if (!Array.isArray(body.lines) || body.lines.length !== pairCount) {
+    // 3-pair offer: only 2 chosen products are sent as lines.
+    // The 3rd pair is random and sent separately as randomThird.size.
+    const expectedLines = pairCount === 3 ? 2 : pairCount;
+    if (!Array.isArray(body.lines) || body.lines.length !== expectedLines) {
       return fail("Invalid items");
+    }
+
+    let randomThirdSize: number | null = null;
+    if (pairCount === 3) {
+      randomThirdSize = Number(body.randomThird?.size);
+      if (!Number.isFinite(randomThirdSize)) {
+        return fail("Select a size for your 3rd pair");
+      }
     }
 
     const cd = body.customerDetails || {};
@@ -159,13 +170,7 @@ export async function POST(req: Request) {
       }
 
       const price = p.price || BASE_PRICE;
-
-      // The 3rd pair in a 3-pair offer is a free surprise — its value is
-      // already included in the ₹1500 base offer. No premium is charged.
-      const isSurpriseThird = pairCount === 3 && i === 2;
-      if (!isSurpriseThird) {
-        extras += Math.max(0, price - BASE_PRICE);
-      }
+      extras += Math.max(0, price - BASE_PRICE);
 
       items.push({
         _key: randomUUID(),
@@ -192,6 +197,7 @@ export async function POST(req: Request) {
       !!body.addShoeCleaner && !!settings?.shoeCleanerAddon;
 
     // ----- Region-aware pricing (matches the client exactly) -----
+    // Random 3rd pair value is already inside offer.basePrice.
     const subtotal = offer.basePrice + extras;
 
     // PREPAID: region shipping applies. COD: no shipping, per-pair COD fee.
@@ -261,6 +267,7 @@ export async function POST(req: Request) {
       shoeCleanerAddon: addCleaner,
       freeSocksOffer: !!settings?.freeSocksOffer,
       pairCount,
+      randomThirdSize: randomThirdSize ?? undefined, // add number field to order schema
       subtotal,
       shippingCharge,
       codCharge, // stored separately for reporting
