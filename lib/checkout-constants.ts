@@ -15,7 +15,7 @@ export const OFFER_CONFIG: Record<
   PairCount,
   { basePrice: number; shippingPerPair: number }
 > = {
-  1: { basePrice: 899, shippingPerPair: 100 },
+  1: { basePrice: 800, shippingPerPair: 100 },
   2: { basePrice: 1299, shippingPerPair: 100 },
   3: { basePrice: 1500, shippingPerPair: 100 },
 };
@@ -47,19 +47,22 @@ export const isInOffer = (
   return pairs === 2 ? !!product.buyOneGetOne : pairs === 1;
 };
 
-// Set in .env.local: NEXT_PUBLIC_UPI_ID=yourname@bank
+// Fallback UPI ID. The ID set in Sanity settings takes priority.
+// Optional .env.local: NEXT_PUBLIC_UPI_ID=yourname@bank
 export const UPI_ID = process.env.NEXT_PUBLIC_UPI_ID || "";
 
 export const buildUpiLink = ({
   amount,
   payeeName,
   note,
+  upiId = UPI_ID,
 }: {
   amount: number;
   payeeName: string;
   note: string;
+  upiId?: string;
 }) =>
-  `upi://pay?pa=${encodeURIComponent(UPI_ID)}` +
+  `upi://pay?pa=${encodeURIComponent(upiId)}` +
   `&pn=${encodeURIComponent(payeeName)}` +
   `&am=${amount.toFixed(2)}` +
   `&cu=INR` +

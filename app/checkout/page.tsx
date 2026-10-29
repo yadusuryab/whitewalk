@@ -73,6 +73,7 @@ export default function CheckoutPage() {
 
   const [freeSocksOffer, setFreeSocksOffer] = useState(false);
   const [shoeCleanerAddon, setShoeCleanerAddon] = useState(false);
+  const [upiIdSetting, setUpiIdSetting] = useState("");
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
@@ -86,14 +87,18 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     client
-      .fetch(`*[_type == "settings"][0]{ freeSocksOffer, shoeCleanerAddon }`)
+      .fetch(
+        `*[_type == "settings"][0]{ freeSocksOffer, shoeCleanerAddon, upiId }`,
+      )
       .then((data) => {
         setFreeSocksOffer(!!data?.freeSocksOffer);
         setShoeCleanerAddon(!!data?.shoeCleanerAddon);
+        setUpiIdSetting((data?.upiId || "").trim());
       })
       .catch(() => {
         setFreeSocksOffer(false);
         setShoeCleanerAddon(false);
+        setUpiIdSetting("");
       })
       .finally(() => setSettingsLoaded(true));
   }, []);
@@ -108,11 +113,15 @@ export default function CheckoutPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [currentStep, showPay]);
 
+  // Sanity value first, env constant as fallback.
+  const activeUpiId = upiIdSetting || UPI_ID;
+
   // ---------- Pricing (display only; server recomputes) ----------
   const mainProduct = cartItems[0];
   const freeProduct = mainProduct?.freeProduct;
 
   // 1, 2 or 3 pairs. Carts saved before pairCount existed fall back to 2.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pairCount: PairCount = toPairCount((mainProduct as any)?.pairCount);
   const offer = OFFER_CONFIG[pairCount];
 
@@ -120,7 +129,8 @@ export default function CheckoutPage() {
   // the size. The warehouse picks the pair based on stock for that size.
   const isRandomThird = pairCount === 3;
   const randomThirdSize: string | null = isRandomThird
-    ? ((mainProduct as any)?.thirdPairSize ?? null)
+    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ((mainProduct as any)?.thirdPairSize ?? null)
     : null;
 
   const pair1Extra = Math.max(
@@ -188,8 +198,9 @@ export default function CheckoutPage() {
         amount: paymentAmount,
         payeeName: site.name || "whitewalk",
         note: `${pairCount} ${pairCount === 1 ? "pair" : "pairs"} order`,
+        upiId: activeUpiId,
       }),
-    [paymentAmount, pairCount],
+    [paymentAmount, pairCount, activeUpiId],
   );
 
   // ---------- Validation ----------
@@ -313,6 +324,7 @@ export default function CheckoutPage() {
       router.push(
         `/order-confirmed?order_id=${data.orderId}${isCod ? "&cod=1" : "&manual=1"}`,
       );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setFormErrors([e?.message || "Could not place order. Try again."]);
       setIsLoading(false);
@@ -330,7 +342,11 @@ export default function CheckoutPage() {
       placeOrder();
       return;
     }
-    if (!UPI_ID) {
+    if (!settingsLoaded) {
+      setFormErrors(["Loading payment details. Try again in a moment."]);
+      return;
+    }
+    if (!activeUpiId) {
       setFormErrors(["Payment is not configured. Please contact us."]);
       return;
     }
@@ -393,7 +409,6 @@ export default function CheckoutPage() {
                 codSavings={codSavings}
                 onContinue={goToDetailsStep}
               />
-
             </>
           ) : showPay && !isCod ? (
             <div>
@@ -408,7 +423,7 @@ export default function CheckoutPage() {
               <ManualPayment
                 amount={paymentAmount}
                 upiLink={upiLink}
-                upiId={UPI_ID}
+                upiId={activeUpiId}
                 isCod={false}
                 remainingAmount={0}
                 file={screenshot}
