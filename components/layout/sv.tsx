@@ -158,30 +158,30 @@ export function ShopVideo({
       {/* ================= CARD ================= */}
       <section ref={sectionRef} className="w-full sm:px-8">
         <div
-          className={`${display.className} group relative rounded-[1.75rem] bg-blue-50 p-6 text-neutral-950 sm:p-10`}
+          className={`${display.className} group relative rounded-[1.75rem] border-2 border-neutral-950 bg-white p-6 text-neutral-950 sm:p-10`}
         >
           <div className="flex items-center gap-4 sm:gap-8">
             {/* Text column */}
             <div className="flex min-w-0 flex-1 flex-col">
               <div className={reveal} style={delay(0)}>
-                <p className="text-sm font-semibold text-blue-700">
+                <p className="text-sm font-semibold text-neutral-950">
                   Shop video, {VIDEO_LENGTH}
                 </p>
                 <h2 className="mt-3 text-balance text-[2.5rem] font-extrabold leading-[0.92] tracking-[-0.045em] sm:text-6xl">
                   See how it&apos;s made.
                 </h2>
-                <p className="mt-3 max-w-[28ch] text-base font-medium leading-snug text-neutral-600">
+                <p className="mt-3 max-w-[28ch] text-base font-medium leading-snug text-neutral-950">
                   Watch how we craft our products with care.
                 </p>
               </div>
 
               <ul
-                className={`mt-5 space-y-1.5 text-sm font-semibold text-neutral-700 ${reveal}`}
+                className={`mt-5 space-y-1.5 text-sm font-semibold text-neutral-950 ${reveal}`}
                 style={delay(120)}
               >
                 {HIGHLIGHTS.map(({ icon: Icon, label }) => (
                   <li key={label} className="flex items-center gap-2">
-                    <Icon className="size-4 text-blue-600" aria-hidden="true" />
+                    <Icon className="size-4 text-neutral-950" aria-hidden="true" />
                     {label}
                   </li>
                 ))}
@@ -200,7 +200,7 @@ export function ShopVideo({
                   </span>
                   <span
                     aria-hidden="true"
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-950 text-white transition-colors duration-300 group-hover:bg-blue-600"
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-950 text-white transition-transform duration-300 group-hover:scale-110"
                   >
                     <Play className="ml-0.5 size-5 fill-current" />
                   </span>
@@ -213,7 +213,7 @@ export function ShopVideo({
               className={`w-[36%] max-w-[200px] shrink-0 ${reveal}`}
               style={delay(160)}
             >
-              <div className="relative aspect-[9/16] overflow-hidden rounded-2xl bg-neutral-200">
+              <div className="relative aspect-[9/16] overflow-hidden rounded-2xl bg-neutral-950 ring-2 ring-neutral-950">
                 <Image
                   src={poster}
                   alt="Shop video preview"
@@ -221,7 +221,7 @@ export function ShopVideo({
                   className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                   sizes="(max-width: 640px) 36vw, 200px"
                 />
-                <div className="absolute inset-0 bg-black/15" />
+                <div className="absolute inset-0 bg-black/10" />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-neutral-950 shadow-lg">
                     <Play className="ml-0.5 size-5 fill-current" />
@@ -246,7 +246,7 @@ export function ShopVideo({
             ref={closeBtnRef}
             onClick={closeModal}
             aria-label="Close video"
-            className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-950 transition hover:bg-blue-600 hover:text-white"
+            className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white text-neutral-950 transition hover:bg-neutral-950 hover:text-white hover:ring-2 hover:ring-white"
           >
             <X className="size-5" />
           </button>
@@ -346,7 +346,7 @@ export function ShopVideo({
 
                 <button
                   onClick={handleShopNow}
-                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-white text-base font-extrabold tracking-[-0.02em] text-neutral-950 transition hover:bg-blue-600 hover:text-white active:scale-[0.98]"
+                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-white text-base font-extrabold tracking-[-0.02em] text-neutral-950 transition hover:bg-neutral-950 hover:text-white hover:ring-2 hover:ring-white active:scale-[0.98]"
                 >
                   <ShoppingBag className="size-4" />
                   Shop now

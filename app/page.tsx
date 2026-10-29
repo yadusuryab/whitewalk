@@ -41,11 +41,11 @@ export default function Home() {
           </div>
         </div>
 
-        {freeSocksOffer && (
+        {/* {freeSocksOffer && (
           <div className={CARD}>
             <FreeSocksPromo />
           </div>
-        )}
+        )} */}
 <StoreLocation/>
         <div className={CARD}>
          

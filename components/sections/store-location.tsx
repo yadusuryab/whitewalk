@@ -27,82 +27,85 @@ export function StoreLocation() {
   const [mapLoaded, setMapLoaded] = useState(false);
 
   return (
-    <section
-      className={`${display.className} w-full px-5 py-10 text-neutral-950 sm:px-8`}
-    >
-      {/* Powered by */}
-      <div className="mb-5 inline-flex items-center gap-2 rounded-md bg-blue-600/10 px-3.5 py-1.5 text-sm font-semibold text-blue-700">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full rounded-full bg-blue-600 opacity-60 motion-safe:animate-ping" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-600" />
-        </span>
-        Whitewalk powered by <span className="font-extrabold">SEETHUKICKZ</span>
-      </div>
-
-      {/* Headline */}
-      <h2 className="text-balance text-4xl font-extrabold leading-[0.92] tracking-[-0.045em] sm:text-6xl md:text-7xl">
-        {STORE_NAME}
-      </h2>
-
-      {/* Address + hours */}
-      <div className="mt-4 space-y-1 text-base font-medium text-neutral-600 sm:text-lg">
-        <p>{ADDRESS}</p>
-        <p>{HOURS}</p>
-      </div>
-
-      {/* Map */}
-      <div className="relative mt-7 aspect-[4/3] w-full overflow-hidden rounded-[1.75rem] bg-neutral-100 sm:aspect-[2/1]">
-        <iframe
-          title="Store location on Google Maps"
-          src={EMBED_SRC}
-          loading="lazy"
-          referrerPolicy="strict-origin-when-cross-origin"
-          allowFullScreen
-          onLoad={() => setMapLoaded(true)}
-          className={`absolute inset-0 h-full w-full border-0 grayscale transition-all duration-700 hover:grayscale-0 ${
-            mapLoaded ? "opacity-100" : "opacity-0"
-          }`}
-        />
-        {!mapLoaded && (
-          <div className="absolute inset-0 animate-pulse bg-neutral-200" />
-        )}
-      </div>
-
-      {/* CTAs */}
-      <div className="mt-6 flex flex-col gap-3">
-        <a
-          href={OPEN_HREF}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group flex h-16 items-center justify-between rounded-full bg-neutral-950 pl-7 pr-2 text-white transition-colors duration-300 hover:bg-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-neutral-950 sm:h-[4.5rem]"
-        >
-          <span className="text-2xl font-extrabold tracking-[-0.03em] sm:text-3xl">
-            Get directions
+    <section className="w-full sm:px-8">
+      <div
+        className={`${display.className} rounded-[1.75rem] border2 border-neutral-950 bg-white p-6 text-neutral-950 sm:p-10`}
+      >
+        {/* Powered by */}
+        <div className="mb-5 inline-flex items-center gap-2 rounded-md bg-neutral-950 px-3.5 py-1.5 text-sm font-semibold text-white">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-60 motion-safe:animate-ping" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
           </span>
-          <span
-            aria-hidden="true"
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-neutral-950 transition-transform duration-300 group-hover:rotate-45 sm:h-14 sm:w-14"
+          Whitewalk powered by{" "}
+          <span className="font-extrabold">SEETHUKICKZ</span>
+        </div>
+
+        {/* Headline */}
+        <h2 className="text-balance text-4xl font-extrabold leading-[0.92] tracking-[-0.045em] sm:text-6xl md:text-7xl">
+          {STORE_NAME}
+        </h2>
+
+        {/* Address + hours */}
+        <div className="mt-4 space-y-1 text-base font-medium text-neutral-950 sm:text-lg">
+          <p>{ADDRESS}</p>
+          <p>{HOURS}</p>
+        </div>
+
+        {/* Map (full color) */}
+        <div className="relative mt-7 aspect-[4/3] w-full overflow-hidden rounded-2xl bg-neutral-100 ring-2 ring-neutral-950 sm:aspect-[2/1]">
+          <iframe
+            title="Store location on Google Maps"
+            src={EMBED_SRC}
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+            onLoad={() => setMapLoaded(true)}
+            className={`absolute inset-0 h-full w-full border-0 transition-opacity duration-700 ${
+              mapLoaded ? "opacity-100" : "opacity-0"
+            }`}
+          />
+          {!mapLoaded && (
+            <div className="absolute inset-0 animate-pulse bg-neutral-200" />
+          )}
+        </div>
+
+        {/* CTAs */}
+        <div className="mt-6 flex flex-col gap-3">
+          <a
+            href={OPEN_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex h-16 items-center justify-between rounded-full bg-neutral-950 pl-7 pr-2 text-white transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-neutral-950 sm:h-[4.5rem]"
           >
-            <ArrowUpRight className="h-6 w-6" />
-          </span>
-        </a>
+            <span className="text-2xl font-extrabold tracking-[-0.03em] sm:text-3xl">
+              Get directions
+            </span>
+            <span
+              aria-hidden="true"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-neutral-950 transition-transform duration-300 group-hover:rotate-45 sm:h-14 sm:w-14"
+            >
+              <ArrowUpRight className="h-6 w-6" />
+            </span>
+          </a>
 
-        <a
-          href={INSTAGRAM_HREF}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group flex h-16 items-center justify-between rounded-full border-2 border-neutral-950 pl-7 pr-2 text-neutral-950 transition-colors duration-300 hover:border-blue-600 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-neutral-950 sm:h-[4.5rem]"
-        >
-          <span className="text-2xl font-extrabold tracking-[-0.03em] sm:text-3xl">
-            @{INSTAGRAM_HANDLE}
-          </span>
-          <span
-            aria-hidden="true"
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-950 text-white transition-transform duration-300 group-hover:rotate-45 sm:h-14 sm:w-14"
+          <a
+            href={INSTAGRAM_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex h-16 items-center justify-between rounded-full border-2 border-neutral-950 pl-7 pr-2 text-neutral-950 transition-colors duration-300 hover:bg-neutral-950 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-neutral-950 sm:h-[4.5rem]"
           >
-            <ArrowUpRight className="h-6 w-6" />
-          </span>
-        </a>
+            <span className="text-2xl font-extrabold tracking-[-0.03em] sm:text-3xl">
+              @{INSTAGRAM_HANDLE}
+            </span>
+            <span
+              aria-hidden="true"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-950 text-white transition-transform duration-300 group-hover:rotate-45 group-hover:bg-white group-hover:text-neutral-950 sm:h-14 sm:w-14"
+            >
+              <ArrowUpRight className="h-6 w-6" />
+            </span>
+          </a>
+        </div>
       </div>
     </section>
   );

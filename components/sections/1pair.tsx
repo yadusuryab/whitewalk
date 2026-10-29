@@ -13,7 +13,7 @@ const display = Inter_Tight({
 
 // Edit these to match your live offer
 const HREF = "/offer?pairs=1";
-const PRICE = 899;
+const PRICE = 800;
 const NOTE = "One pair, any style. Pay once, at checkout.";
 
 const inr = (n: number) => n.toLocaleString("en-IN");

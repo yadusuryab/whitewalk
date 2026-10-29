@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from "next/image";
@@ -53,7 +52,7 @@ export function ReviewsBento() {
   return (
     <section ref={ref} className="w-full sm:px-8">
       <div
-        className={`${display.className} group relative rounded-[1.75rem] bg-neutral-950 p-6 text-white ring-1 ring-white/10 sm:p-10`}
+        className={`${display.className} group relative rounded-[1.75rem] bg-neutral-950 p-6 text-white sm:p-10`}
       >
         {/* Stars + headline */}
         <div className={reveal} style={delay(0)}>
@@ -61,7 +60,7 @@ export function ReviewsBento() {
             {Array.from({ length: 5 }).map((_, i) => (
               <Star
                 key={i}
-                className="size-5 text-white"
+                className="size-6 text-white"
                 fill="currentColor"
                 aria-hidden="true"
               />
@@ -72,12 +71,12 @@ export function ReviewsBento() {
             Happy customers.
           </h2>
 
-          <p className="mt-4 text-lg font-medium text-white/60">
+          <p className="mt-4 text-lg font-medium text-white">
             Real reviews from real people.
           </p>
         </div>
 
-        {/* Review images */}
+        {/* Review images (full color) */}
         <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4">
           {IMAGES.map((img, i) => (
             <div
@@ -85,12 +84,12 @@ export function ReviewsBento() {
               className={`${reveal} ${i === 1 ? "mt-6" : ""}`}
               style={delay(160 + i * 120)}
             >
-              <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/10">
+              <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-neutral-900 ring-2 ring-white">
                 <Image
                   src={img.src}
                   alt={img.alt}
                   fill
-                  className="object-cover object-top grayscale contrast-110 transition-transform duration-700 group-hover:scale-[1.03]"
+                  className="object-cover object-top transition-transform duration-700 group-hover:scale-[1.03]"
                   sizes="(max-width: 640px) 45vw, 300px"
                 />
               </div>
@@ -119,7 +118,7 @@ export function ReviewsBento() {
           {/* Sits above the stretched link */}
           <Link
             href={WRITE_HREF}
-            className="relative z-10 mt-5 block w-fit text-base font-semibold underline decoration-white/50 decoration-1 underline-offset-[6px] transition-colors hover:decoration-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+            className="relative z-10 mt-5 block w-fit text-base font-semibold text-white underline decoration-white/50 decoration-1 underline-offset-[6px] transition-colors hover:decoration-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
           >
             Write a review
           </Link>
