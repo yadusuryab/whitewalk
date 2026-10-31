@@ -1,8 +1,22 @@
 // checkout-form.tsx
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { AlertCircle, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CustomerDetailsFormProps {
@@ -26,6 +40,45 @@ interface CustomerDetailsFormProps {
   getFieldError?: (field: string) => string | undefined;
 }
 
+const INDIAN_STATES = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry",
+];
+
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return (
@@ -43,8 +96,73 @@ const labelClass = "text-sm font-semibold text-neutral-500";
 const base =
   "mt-2 rounded-2xl border-transparent bg-neutral-100 px-4 text-sm font-medium shadow-none transition-all duration-300 placeholder:text-neutral-400 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-0";
 const err = "bg-red-50 ring-2 ring-red-400 focus-visible:ring-red-400";
-const inputClass = (hasError: boolean) =>
-  cn(base, "h-12", hasError && err);
+const inputClass = (hasError: boolean) => cn(base, "h-12", hasError && err);
+
+function StateSelect({
+  value,
+  hasError,
+  onSelect,
+}: {
+  value: string;
+  hasError: boolean;
+  onSelect: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          id="state"
+          role="combobox"
+          aria-expanded={open}
+          aria-invalid={hasError}
+          className={cn(
+            base,
+            "flex h-12 w-full items-center justify-between text-left outline-none",
+            !value && "text-neutral-400",
+            hasError && err
+          )}
+        >
+          <span className="truncate">{value || "Select your state"}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[var(--radix-popover-trigger-width)] rounded-2xl p-0"
+        align="start"
+      >
+        <Command>
+          <CommandInput placeholder="Search state..." />
+          <CommandList>
+            <CommandEmpty>No state found.</CommandEmpty>
+            <CommandGroup>
+              {INDIAN_STATES.map((s) => (
+                <CommandItem
+                  key={s}
+                  value={s}
+                  onSelect={() => {
+                    onSelect(s);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === s ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {s}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export const CustomerDetailsForm = ({
   customerDetails,
@@ -53,6 +171,15 @@ export const CustomerDetailsForm = ({
   getFieldError,
 }: CustomerDetailsFormProps) => {
   const errorFor = (field: string) => getFieldError?.(field);
+
+  const handleStateSelect = (value: string) => {
+    handleInputChange({
+      target: { name: "state", value },
+    } as React.ChangeEvent<HTMLInputElement>);
+    handleInputBlur?.({
+      target: { name: "state", value },
+    } as React.FocusEvent<HTMLInputElement>);
+  };
 
   return (
     <div className="space-y-5">
@@ -182,15 +309,10 @@ export const CustomerDetailsForm = ({
           <Label htmlFor="state" className={labelClass}>
             State *
           </Label>
-          <Input
-            id="state"
-            name="state"
-            placeholder="Your state"
+          <StateSelect
             value={customerDetails.state}
-            onChange={handleInputChange}
-            onBlur={handleInputBlur}
-            aria-invalid={!!errorFor("state")}
-            className={inputClass(!!errorFor("state"))}
+            hasError={!!errorFor("state")}
+            onSelect={handleStateSelect}
           />
           <FieldError message={errorFor("state")} />
         </div>
