@@ -21,6 +21,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { site } from "@/lib/site-config";
 
 const display = Inter_Tight({
   subsets: ["latin"],
@@ -74,13 +75,76 @@ function statusPill(status: string) {
   const s = status?.toLowerCase();
   if (s === "delivered") return "bg-neutral-950 text-white";
   if (s === "cancelled" || s === "failed") return "bg-red-600/10 text-red-700";
-  if (s === "shipped" || s === "processing") return "bg-blue-600/10 text-blue-700";
+  if (s === "shipped" || s === "processing")
+    return "bg-blue-600/10 text-blue-700";
   return "bg-neutral-100 text-neutral-600";
 }
 
 // Only paid orders are shown (hides pending / failed payments)
-function isPaid(order: Order) {
-  return order.paymentStatus?.toLowerCase() === "paid";
+
+function whatsappLink(text: string) {
+  return `https://wa.me/${site.phone}?text=${encodeURIComponent(text)}`;
+}
+
+function orderWhatsappLink(order: Order) {
+  const itemLines = order.items
+    .map(
+      (item, i) =>
+        `${i + 1}. ${item.productName}` +
+        `${item.size ? ` (Size ${item.size})` : ""}` +
+        `${item.isFreeItem ? " [FREE]" : ""}` +
+        ` - ₹${item.price}`,
+    )
+    .join("\n");
+
+  const addons = [
+    order.shoeCleanerAddon ? "Shoe cleaner add-on" : null,
+    order.freeSocksOffer ? "Free socks offer" : null,
+  ].filter(Boolean);
+
+  const address = [
+    order.address,
+    order.landmark,
+    order.district,
+    `${order.state} - ${order.pincode}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const lines = [
+    `Hi, I'd like more details about my order.`,
+    ``,
+    `*Order ID:* ${order.orderId}`,
+    `*Order date:* ${new Date(order.createdAt).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })}`,
+    `*Order status:* ${order.fulfillmentStatus}`,
+    `*Payment status:* ${order.paymentStatus}`,
+    order.expectedDeliveryLabel
+      ? `*Expected delivery:* ${order.expectedDeliveryLabel}`
+      : null,
+    ``,
+    `*Customer details*`,
+    `Name: ${order.customerName}`,
+    `Phone: ${order.contact1}`,
+    `Address: ${address}`,
+    ``,
+    `*Items*`,
+    itemLines,
+    addons.length ? `\n*Add-ons:* ${addons.join(", ")}` : null,
+    order.shippingMethod ? `*Shipping method:* ${order.shippingMethod}` : null,
+    ``,
+    `*Payment summary*`,
+    `Subtotal: ₹${order.subtotal}`,
+    `Shipping: ₹${order.shippingCharge}`,
+    `Total: ₹${order.totalAmount}`,
+    ``,
+    `Could you share the tracking ID and delivery update?`,
+  ];
+
+  return whatsappLink(lines.filter((l) => l !== null).join("\n"));
 }
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
@@ -122,7 +186,7 @@ function TrackOrderContent() {
         return;
       }
 
-      setOrders((data.orders as Order[]).filter(isPaid));
+      setOrders(data.orders as Order[]);
     } catch {
       setError("Something went wrong on our end. Please try again.");
     } finally {
@@ -153,7 +217,9 @@ function TrackOrderContent() {
   }
 
   return (
-    <main className={`${display.className} min-h-screen bg-white text-neutral-950`}>
+    <main
+      className={`${display.className} min-h-screen bg-white text-neutral-950`}
+    >
       <div className="mx-auto max-w-2xl px-5 py-12 sm:px-8 md:py-20">
         {/* Header */}
         <header>
@@ -170,7 +236,8 @@ function TrackOrderContent() {
           </h1>
 
           <p className="mt-6 max-w-md text-base font-medium leading-relaxed text-neutral-600 sm:text-lg">
-            Enter the phone number you used at checkout. We&rsquo;ll pull up every order tied to it.
+            Enter the phone number you used at checkout. We&rsquo;ll pull up
+            every order tied to it.
           </p>
         </header>
 
@@ -232,22 +299,62 @@ function TrackOrderContent() {
 
         {/* Error */}
         {!loading && error && (
-          <p
-            role="alert"
-            className="mt-12 rounded-2xl bg-red-600/10 p-4 text-sm font-semibold leading-relaxed text-red-700"
-          >
-            {error}
-          </p>
+          <div className="mt-12">
+            <p
+              role="alert"
+              className="rounded-2xl bg-red-600/10 p-4 text-sm font-semibold leading-relaxed text-red-700"
+            >
+              {error}
+            </p>
+            <a
+              href={whatsappLink(
+                `Hi, I need help finding my order. My phone number is ${digitsOnly || "(not entered)"}.`,
+              )}
+              target="_blank"
+              rel="noreferrer"
+              className="group mt-3 flex h-14 items-center justify-between rounded-full border-2 border-neutral-950 pl-6 pr-1.5 transition-colors duration-300 hover:border-blue-600 hover:text-blue-600"
+            >
+              <span className="text-lg font-extrabold tracking-[-0.03em]">
+                Ask us on WhatsApp
+              </span>
+              <span
+                aria-hidden="true"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-950 text-white transition-transform duration-300 group-hover:rotate-45"
+              >
+                <ArrowUpRight className="h-5 w-5" />
+              </span>
+            </a>
+          </div>
         )}
 
         {/* Empty */}
         {!loading && !error && searched && orders?.length === 0 && (
           <div className="mt-12 border-t-2 border-neutral-950 pt-10 text-center">
             <Package className="mx-auto mb-3 h-8 w-8 text-neutral-400" />
-            <p className="text-2xl font-extrabold tracking-[-0.04em]">No orders found.</p>
+            <p className="text-2xl font-extrabold tracking-[-0.04em]">
+              No orders found.
+            </p>
             <p className="mt-1 text-base font-medium text-neutral-600">
               Check the number and try again.
             </p>
+            <a
+              href={whatsappLink(
+                `Hi, I can't find my order. My phone number is ${digitsOnly}.`,
+              )}
+              target="_blank"
+              rel="noreferrer"
+              className="group mx-auto mt-6 flex h-14 max-w-sm items-center justify-between rounded-full bg-neutral-950 pl-6 pr-1.5 text-left text-white transition-colors duration-300 hover:bg-blue-600"
+            >
+              <span className="text-lg font-extrabold tracking-[-0.03em]">
+                Ask us on WhatsApp
+              </span>
+              <span
+                aria-hidden="true"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-neutral-950 transition-transform duration-300 group-hover:rotate-45"
+              >
+                <ArrowUpRight className="h-5 w-5" />
+              </span>
+            </a>
           </div>
         )}
 
@@ -256,13 +363,19 @@ function TrackOrderContent() {
           <section className="mt-12">
             <div className="mb-4 flex items-center justify-between">
               <Eyebrow>
-                {orders.length === 1 ? "1 order found" : `${orders.length} orders found`}
+                {orders.length === 1
+                  ? "1 order found"
+                  : `${orders.length} orders found`}
               </Eyebrow>
               <button
                 onClick={handleCopyLink}
                 className="flex items-center gap-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:text-blue-600"
               >
-                {copied ? <Check className="h-3.5 w-3.5" /> : <LinkIcon className="h-3.5 w-3.5" />}
+                {copied ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <LinkIcon className="h-3.5 w-3.5" />
+                )}
                 {copied ? "Link copied" : "Copy link"}
               </button>
             </div>
@@ -295,11 +408,14 @@ function TrackOrderContent() {
                             Order {order.orderId}
                           </p>
                           <p className="mt-1.5 text-sm font-medium text-neutral-500">
-                            {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
+                            {new Date(order.createdAt).toLocaleDateString(
+                              "en-IN",
+                              {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
                             {" · "}
                             <span className="font-semibold text-neutral-950">
                               ₹{order.totalAmount}
@@ -324,7 +440,10 @@ function TrackOrderContent() {
                           This order was cancelled.
                         </p>
                       ) : (
-                        <ol className="grid grid-cols-4 gap-2" aria-label="Order progress">
+                        <ol
+                          className="grid grid-cols-4 gap-2"
+                          aria-label="Order progress"
+                        >
                           {STEPS.map((step, i) => {
                             const Icon = step.icon;
                             const done = i < idx || (delivered && i === idx);
@@ -340,8 +459,8 @@ function TrackOrderContent() {
                                       done
                                         ? "bg-neutral-950"
                                         : current
-                                        ? "bg-blue-600"
-                                        : "w-0"
+                                          ? "bg-blue-600"
+                                          : "w-0"
                                     }`}
                                   />
                                 </div>
@@ -350,11 +469,14 @@ function TrackOrderContent() {
                                     current
                                       ? "text-blue-700"
                                       : done
-                                      ? "text-neutral-950"
-                                      : "text-neutral-400"
+                                        ? "text-neutral-950"
+                                        : "text-neutral-400"
                                   }`}
                                 >
-                                  <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                  <Icon
+                                    className="h-3.5 w-3.5 shrink-0"
+                                    aria-hidden="true"
+                                  />
                                   <span className="truncate">{step.label}</span>
                                 </div>
                               </li>
@@ -415,11 +537,37 @@ function TrackOrderContent() {
                         <div className="mt-3 flex items-start gap-2 text-sm font-medium leading-relaxed text-neutral-600">
                           <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-neutral-950" />
                           <p>
-                            {order.address}, {order.landmark ? `${order.landmark}, ` : ""}
+                            {order.address},{" "}
+                            {order.landmark ? `${order.landmark}, ` : ""}
                             {order.district}, {order.state} – {order.pincode}
                           </p>
                         </div>
                       </div>
+
+                      {/* WhatsApp: more details / tracking ID */}
+                      {!cancelled && (
+                        <div className="mt-6 border-t border-neutral-200 pt-5">
+                          <p className="text-sm font-medium text-neutral-500">
+                            Need the tracking ID or more details?
+                          </p>
+                          <a
+                            href={orderWhatsappLink(order)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="group mt-3 flex h-14 items-center justify-between rounded-full bg-neutral-950 pl-6 pr-1.5 text-white transition-colors duration-300 hover:bg-blue-600"
+                          >
+                            <span className="text-lg font-extrabold tracking-[-0.03em]">
+                              Ask on WhatsApp
+                            </span>
+                            <span
+                              aria-hidden="true"
+                              className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-neutral-950 transition-transform duration-300 group-hover:rotate-45"
+                            >
+                              <ArrowUpRight className="h-5 w-5" />
+                            </span>
+                          </a>
+                        </div>
+                      )}
                     </AccordionContent>
                   </AccordionItem>
                 );
