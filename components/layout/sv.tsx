@@ -209,26 +209,32 @@ export function ShopVideo({
             </div>
 
             {/* Poster */}
-            <div
-              className={`w-[36%] max-w-[200px] shrink-0 ${reveal}`}
-              style={delay(160)}
-            >
-              <div className="relative aspect-[9/16] overflow-hidden rounded-2xl bg-neutral-950 ring-2 ring-neutral-950">
-                <Image
-                  src={poster}
-                  alt="Shop video preview"
-                  fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                  sizes="(max-width: 640px) 36vw, 200px"
-                />
-                <div className="absolute inset-0 bg-black/10" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-neutral-950 shadow-lg">
-                    <Play className="ml-0.5 size-5 fill-current" />
-                  </span>
-                </div>
-              </div>
-            </div>
+          {/* Poster */}
+<div
+  className={`w-[36%] max-w-[200px] shrink-0 ${reveal}`}
+  style={delay(160)}
+>
+  <button
+    type="button"
+    onClick={() => setOpen(true)}
+    aria-label="Watch shop video"
+    className="relative block aspect-[9/16] w-full cursor-pointer overflow-hidden rounded-2xl bg-neutral-950 ring-2 ring-neutral-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-neutral-950"
+  >
+    <Image
+      src={poster}
+      alt="Shop video preview"
+      fill
+      className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+      sizes="(max-width: 640px) 36vw, 200px"
+    />
+    <span className="absolute inset-0 bg-black/10" />
+    <span className="absolute inset-0 flex items-center justify-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-neutral-950 shadow-lg transition-transform duration-300 group-hover:scale-110">
+        <Play className="ml-0.5 size-5 fill-current" />
+      </span>
+    </span>
+  </button>
+</div>
           </div>
         </div>
       </section>
