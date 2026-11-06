@@ -41,8 +41,8 @@ const formatTime = (s: number) => {
 };
 
 export function ShopVideo({
-  src = "/v2.mp4",
-  poster = "/v2-poster.jpg",
+  src = "/shop-video.MOV",
+  poster = "/image.png",
   onShopNow,
 }: ShopVideoProps) {
   const sectionRef = useRef<HTMLElement>(null);
