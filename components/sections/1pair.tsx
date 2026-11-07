@@ -119,7 +119,7 @@ export function OnePairOffer() {
 
           <span className="flex h-16 items-center justify-between rounded-full bg-black pl-7 pr-2 text-white transition-colors duration-500 group-hover:bg-white group-hover:text-black sm:h-[4.5rem] sm:min-w-[19rem]">
             <span className="text-2xl font-extrabold tracking-[-0.03em] sm:text-3xl">
-              Shop 1 pair
+              BUY 1 PAIR OFFER
             </span>
             <span
               aria-hidden="true"

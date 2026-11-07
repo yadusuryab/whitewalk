@@ -134,7 +134,7 @@ export function Hero() {
         {/* CTA */}
         <div className="mt-6 flex h-16 items-center justify-between rounded-full bg-neutral-950 pl-7 pr-2 text-white transition-colors duration-300 group-hover:bg-blue-600 sm:h-[4.5rem]">
           <span className="text-2xl font-extrabold tracking-[-0.03em] sm:text-3xl">
-            Claim offer
+            BUY 3 PAIR OFFER
           </span>
           <span
             aria-hidden="true"

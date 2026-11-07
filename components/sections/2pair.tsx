@@ -93,7 +93,7 @@ export function TwoPairsOffer() {
         <div className={reveal} style={delay(240)}>
           <div className="mt-8 flex h-16 items-center justify-between rounded-full bg-white pl-7 pr-2 text-neutral-950 transition-colors duration-300 group-hover:bg-blue-500 group-hover:text-white sm:h-[4.5rem]">
             <span className="text-2xl font-extrabold tracking-[-0.03em] sm:text-3xl">
-              Shop 2 pairs
+              BUY 2 PAIR OFFER
             </span>
             <span
               aria-hidden="true"
