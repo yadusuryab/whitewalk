@@ -3,8 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Inter_Tight } from "next/font/google";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Search, Check, ArrowUpRight } from "lucide-react";
+import { Search, Check, ArrowUpRight, X } from "lucide-react";
 import ProductCard2 from "@/components/product/product-image-card";
 import Image from "next/image";
 import Link from "next/link";
@@ -49,6 +48,40 @@ const isSizeDisabled = (
   size: string | number,
 ) => !!product?.disabledSizes?.some((s) => String(s) === String(size));
 
+/* ---------- Size system (UK/India <-> EU) ---------- */
+
+type SizeSystem = "uk" | "eu";
+
+const EU_TO_UK: Record<string, string> = {
+  "39": "5",
+  "40": "6",
+  "41": "7",
+  "42": "8",
+  "43": "9",
+  "44": "10",
+  "45": "11",
+};
+const UK_TO_EU: Record<string, string> = Object.fromEntries(
+  Object.entries(EU_TO_UK).map(([eu, uk]) => [uk, eu]),
+);
+
+// Display-only conversion. Works whether product data stores UK (5-11) or
+// EU (39-45) sizes. Unmapped sizes (e.g. "5.5") are shown as-is.
+// The value stored in the cart is never changed.
+const toSystem = (raw: string | number, system: SizeSystem) => {
+  const s = String(raw);
+  if (EU_TO_UK[s]) return system === "eu" ? s : EU_TO_UK[s];
+  if (UK_TO_EU[s]) return system === "uk" ? s : UK_TO_EU[s];
+  return s;
+};
+
+const formatSize = (raw: string | number, system: SizeSystem) =>
+  `${system === "uk" ? "UK" : "EU"} ${toSystem(raw, system)}`;
+
+// "UK 7 = EU 41" helper line shown after a size is selected
+const bothSystems = (raw: string | number) =>
+  `UK ${toSystem(raw, "uk")} = EU ${toSystem(raw, "eu")}`;
+
 /* ---------- UI atoms (Hero language) ---------- */
 
 const LivePill = ({ children }: { children: React.ReactNode }) => (
@@ -90,6 +123,42 @@ const PillCTA = ({
   </button>
 );
 
+const SizeSystemToggle = ({
+  value,
+  onChange,
+}: {
+  value: SizeSystem;
+  onChange: (v: SizeSystem) => void;
+}) => (
+  <div
+    role="radiogroup"
+    aria-label="Size system"
+    className="inline-flex rounded-full bg-neutral-100 p-1"
+  >
+    {(
+      [
+        { id: "uk", label: "UK / India" },
+        { id: "eu", label: "EU" },
+      ] as const
+    ).map((o) => (
+      <button
+        key={o.id}
+        type="button"
+        role="radio"
+        aria-checked={value === o.id}
+        onClick={() => onChange(o.id)}
+        className={`rounded-full px-3 py-1 text-xs font-extrabold tracking-tight transition-all duration-200 ${
+          value === o.id
+            ? "bg-neutral-950 text-white shadow-sm"
+            : "text-neutral-500 hover:text-neutral-950"
+        }`}
+      >
+        {o.label}
+      </button>
+    ))}
+  </div>
+);
+
 const Thumbnail = ({
   product,
   alt,
@@ -114,6 +183,68 @@ const Thumbnail = ({
   </div>
 );
 
+/* ---------- Lightweight modal (replaces Radix Dialog) ---------- */
+
+const SizeSheet = ({
+  open,
+  onClose,
+  className = "",
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) => {
+  // Keep the latest onClose without re-running the effect on every render
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Select size"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+    >
+      <div
+        aria-hidden="true"
+        onClick={() => onCloseRef.current()}
+        className="absolute inset-0 bg-black/50 duration-200 animate-in fade-in"
+      />
+      <div
+        className={`relative max-h-[90vh] w-full max-w-[350px] overflow-y-auto rounded-[1.75rem] bg-white p-5 text-neutral-950 shadow-2xl duration-300 animate-in fade-in zoom-in-95 ${className}`}
+      >
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={() => onCloseRef.current()}
+          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-950 shadow-sm transition-transform active:scale-90"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 /* ---------- Hook ---------- */
 
 export const useAddToCart = (pairCount: PairCount = 2) => {
@@ -123,6 +254,23 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Size display system (remembered across visits)
+  const [sizeSystem, setSizeSystemState] = useState<SizeSystem>("uk");
+
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("sizeSystem");
+      if (v === "uk" || v === "eu") setSizeSystemState(v);
+    } catch {}
+  }, []);
+
+  const setSizeSystem = useCallback((s: SizeSystem) => {
+    setSizeSystemState(s);
+    try {
+      localStorage.setItem("sizeSystem", s);
+    } catch {}
+  }, []);
 
   // Extra pairs beyond the first: 0 for 1 pair, 1 for 2 pairs, 2 for 3 pairs
   const [extraPicks, setExtraPicks] = useState<PairPick[]>(() =>
@@ -228,6 +376,8 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
       const toLine = (p?: PairPick) =>
         p?.product ? { ...slim(p.product), selectedSize: p.size } : null;
 
+      // NOTE: sizes are stored exactly as they exist in product data,
+      // regardless of which size system the customer is viewing.
       const cartItem = {
         ...slim(item),
         selectedSize: size,
@@ -402,8 +552,12 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
             if (!isSizeDisabled(p, s)) sizeSet.add(String(s));
           }),
         );
+        // Sort by UK equivalent so order is correct in both systems
         const thirdSizes = sizeSet.size
-          ? Array.from(sizeSet).sort((a, b) => parseFloat(a) - parseFloat(b))
+          ? Array.from(sizeSet).sort(
+              (a, b) =>
+                parseFloat(toSystem(a, "uk")) - parseFloat(toSystem(b, "uk")),
+            )
           : ["6", "7", "8", "9", "10", "11"];
 
         return (
@@ -417,11 +571,17 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
                 <br />
                 3rd pair is ready.
               </h2>
-              <p className="mb-5 mt-3 text-sm font-semibold text-neutral-500">
-                Select your size (UK)
-              </p>
+              <div className="mb-5 mt-3 flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-neutral-500">
+                  Select your size
+                </p>
+                <SizeSystemToggle
+                  value={sizeSystem}
+                  onChange={setSizeSystem}
+                />
+              </div>
 
-              <div className="mb-8 flex flex-wrap gap-2">
+              <div className="mb-2 flex flex-wrap gap-2">
                 {thirdSizes.map((size) => (
                   <button
                     key={size}
@@ -433,10 +593,14 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
                         : "bg-neutral-100 text-neutral-950 hover:bg-neutral-200"
                     }`}
                   >
-                    {size}
+                    {toSystem(size, sizeSystem)}
                   </button>
                 ))}
               </div>
+
+              <p className="mb-6 h-4 text-xs font-semibold text-neutral-500">
+                {thirdSize ? bothSystems(thirdSize) : ""}
+              </p>
 
               <PillCTA
                 onClick={completeBogoFlow}
@@ -481,7 +645,7 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
                   Your first pair
                 </p>
                 <p className="text-sm font-medium text-neutral-500">
-                  UK {selectedSize}
+                  {selectedSize ? formatSize(selectedSize, sizeSystem) : ""}
                 </p>
               </div>
               <span className="flex items-center gap-1 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white">
@@ -582,7 +746,9 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
                     )}
                     <span className="text-xs font-bold">
                       {pick.product && pick.size ? (
-                        <span className="text-blue-700">✓ {pick.size}</span>
+                        <span className="text-blue-700">
+                          ✓ {toSystem(pick.size, sizeSystem)}
+                        </span>
                       ) : pick.product ? (
                         "Size?"
                       ) : (
@@ -630,6 +796,8 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
       allBogoProducts,
       bogoLoading,
       handleBogoScroll,
+      sizeSystem,
+      setSizeSystem,
     ],
   );
 
@@ -651,12 +819,12 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
       const isLastSlot = activeSlot >= extraPicks.length - 1;
 
       return (
-        <Dialog open={isSizeModalOpen} onOpenChange={setIsSizeModalOpen}>
-          <DialogContent
-            className={`${display.className} max-h-[90vh] max-w-[350px] gap-0 overflow-y-auto rounded-[1.75rem] border-0 bg-white p-5 text-neutral-950 duration-300`}
-          >
-            <DialogTitle className="sr-only">Select Size</DialogTitle>
-
+        <SizeSheet
+          open={isSizeModalOpen}
+          onClose={() => setIsSizeModalOpen(false)}
+          className={display.className}
+        >
+          <>
             <div className="mb-5 overflow-hidden rounded-[1.5rem] duration-500 animate-in fade-in zoom-in-95">
               <ProductCard2 product={currentProduct} noLink={true} />
             </div>
@@ -664,11 +832,14 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
             <h3 className="mb-1 line-clamp-1 text-2xl font-extrabold leading-none tracking-[-0.04em]">
               {currentProduct.productName}
             </h3>
-            <p className="mb-4 text-sm font-semibold text-neutral-500">
-              Select your size (UK)
-            </p>
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-neutral-500">
+                Select your size
+              </p>
+              <SizeSystemToggle value={sizeSystem} onChange={setSizeSystem} />
+            </div>
 
-            <div className="mb-6 flex flex-wrap gap-2">
+            <div className="mb-2 flex flex-wrap gap-2">
               {currentProduct.sizes?.map((rawSize, i) => {
                 const size = String(rawSize);
                 const off = isSizeDisabled(currentProduct, size);
@@ -699,10 +870,18 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
                       }
                     }}
                   >
-                    {size}
+                    {toSystem(size, sizeSystem)}
                   </button>
                 );
               })}
+            </div>
+
+            <div className="mb-4 h-5">
+              {currentSize && (
+                <p className="text-xs font-semibold text-neutral-500 duration-300 animate-in fade-in">
+                  {bothSystems(currentSize)}
+                </p>
+              )}
             </div>
 
             <PillCTA
@@ -751,8 +930,8 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
                   ? "Confirm & checkout"
                   : "Confirm size"}
             </PillCTA>
-          </DialogContent>
-        </Dialog>
+          </>
+        </SizeSheet>
       );
     },
     [
@@ -769,6 +948,8 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
       addToCart,
       goToCheckout,
       pairCount,
+      sizeSystem,
+      setSizeSystem,
     ],
   );
 
@@ -820,5 +1001,7 @@ export const useAddToCart = (pairCount: PairCount = 2) => {
     renderSizeModal,
     renderCheckoutLoading,
     setSearchQuery,
+    sizeSystem,
+    setSizeSystem,
   };
 };

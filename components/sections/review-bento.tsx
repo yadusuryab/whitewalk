@@ -16,8 +16,8 @@ const display = Inter_Tight({
 const READ_HREF = "/reviews";
 const WRITE_HREF = "/reviews"; // change if you have a dedicated write-a-review page
 const IMAGES = [
-  { src: "/r1.jpeg", alt: "Customer review screenshot 1" },
-  { src: "/r2.jpeg", alt: "Customer review screenshot 2" },
+  { src: "/r1.avif", alt: "Customer review screenshot 1" },
+  { src: "/r2.avif", alt: "Customer review screenshot 2" },
 ];
 
 export function ReviewsBento() {

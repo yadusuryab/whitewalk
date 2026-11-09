@@ -1,6 +1,6 @@
 "use client";
 
-import Poster2 from "@/public/hero2.avif";
+import Poster2 from "@/public/hero.avif";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";

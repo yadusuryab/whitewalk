@@ -30,9 +30,9 @@ export default function Home() {
       <div className="mx-auto w-full columns-1 gap-1 px-4 md:grid md:grid-cols-2">
         <div className={CARD}>
           <Hero />
-           <OnePairOffer/>
-           <TwoPairsOffer />
-          
+          <OnePairOffer />
+          <TwoPairsOffer />
+
           <div className={CARD}>
             <OrderTrackCTA />
             <div className={CARD}>
@@ -46,9 +46,8 @@ export default function Home() {
             <FreeSocksPromo />
           </div>
         )} */}
-<StoreLocation/>
+        <StoreLocation />
         <div className={CARD}>
-         
           <div className={CARD}>
             <ReviewsBento />
           </div>

@@ -42,7 +42,7 @@ const formatTime = (s: number) => {
 
 export function ShopVideo({
   src = "/shop-video.MOV",
-  poster = "/image.png",
+  poster = "/sv.avif",
   onShopNow,
 }: ShopVideoProps) {
   const sectionRef = useRef<HTMLElement>(null);
