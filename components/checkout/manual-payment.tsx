@@ -14,6 +14,7 @@ export function ManualPayment({
   amount,
   upiLink,
   upiId,
+  upiNumber = "7592984622",
   isCod,
   remainingAmount,
   file,
@@ -24,6 +25,7 @@ export function ManualPayment({
   amount: number;
   upiLink: string;
   upiId: string;
+  upiNumber?: string;
   isCod: boolean;
   remainingAmount: number;
   file: File | null;
@@ -58,10 +60,10 @@ export function ManualPayment({
     onFileChange(f);
   };
 
-  const copyUpi = async () => {
+  const copyText = async (text: string, successMsg: string) => {
     try {
-      await navigator.clipboard.writeText(upiId);
-      toast.success("UPI ID copied");
+      await navigator.clipboard.writeText(text);
+      toast.success(successMsg);
     } catch {
       toast.error("Could not copy");
     }
@@ -87,16 +89,35 @@ export function ManualPayment({
           ₹{amount}
         </p>
 
-        <div className="flex items-center gap-2 rounded-full bg-white py-1.5 pl-4 pr-1.5 text-sm">
-          <span className="break-all font-semibold">{upiId}</span>
-          <button
-            type="button"
-            onClick={copyUpi}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-950 text-white transition-all duration-300 hover:bg-blue-600 active:scale-90"
-            aria-label="Copy UPI ID"
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </button>
+        <div className="flex w-full flex-col items-center gap-2">
+          {/* UPI ID */}
+          <div className="flex items-center gap-2 rounded-full bg-white py-1.5 pl-4 pr-1.5 text-sm">
+            <span className="break-all font-semibold">{upiId}</span>
+            <button
+              type="button"
+              onClick={() => copyText(upiId, "UPI ID copied")}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-950 text-white transition-all duration-300 hover:bg-blue-600 active:scale-90"
+              aria-label="Copy UPI ID"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* UPI number */}
+          <div className="flex items-center gap-2 rounded-full bg-white py-1.5 pl-4 pr-1.5 text-sm">
+            <span className="text-xs font-semibold text-neutral-500">
+              UPI number
+            </span>
+            <span className="font-semibold tabular-nums">{upiNumber}</span>
+            <button
+              type="button"
+              onClick={() => copyText(upiNumber, "UPI number copied")}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-950 text-white transition-all duration-300 hover:bg-blue-600 active:scale-90"
+              aria-label="Copy UPI number"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* On phones, you can't scan your own screen */}
