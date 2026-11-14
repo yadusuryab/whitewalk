@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { CustomerDetailsForm } from "@/components/checkout/checkout-form";
 import { ManualPayment } from "@/components/checkout/manual-payment";
 import { site } from "@/lib/site-config";
-import { client } from "@/sanityClient";
+import { compressImage } from "@/lib/compress-image";
 import { fbTrackCustom } from "@/lib/fbq";
 import { display, H2, LivePill, PillCTA } from "@/components/checkout/ui";
 
@@ -85,21 +85,34 @@ export default function CheckoutPage() {
     }
   }, []);
 
+  // Settings come from our cached /api/settings route (not Sanity directly)
+  // and are kept in sessionStorage so repeat visits cost zero requests.
   useEffect(() => {
-    client
-      .fetch(
-        `*[_type == "settings"][0]{ freeSocksOffer, shoeCleanerAddon, upiId }`,
-      )
-      .then((data) => {
-        setFreeSocksOffer(!!data?.freeSocksOffer);
-        setShoeCleanerAddon(!!data?.shoeCleanerAddon);
-        setUpiIdSetting((data?.upiId || "").trim());
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apply = (d: any) => {
+      setFreeSocksOffer(!!d?.freeSocksOffer);
+      setShoeCleanerAddon(!!d?.shoeCleanerAddon);
+      setUpiIdSetting((d?.upiId || "").trim());
+    };
+
+    try {
+      const c = sessionStorage.getItem("settings");
+      if (c) {
+        apply(JSON.parse(c));
+        setSettingsLoaded(true);
+        return;
+      }
+    } catch {}
+
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => {
+        try {
+          sessionStorage.setItem("settings", JSON.stringify(d ?? {}));
+        } catch {}
+        apply(d);
       })
-      .catch(() => {
-        setFreeSocksOffer(false);
-        setShoeCleanerAddon(false);
-        setUpiIdSetting("");
-      })
+      .catch(() => apply({}))
       .finally(() => setSettingsLoaded(true));
   }, []);
 
@@ -303,7 +316,10 @@ export default function CheckoutPage() {
 
       const fd = new FormData();
       fd.append("payload", JSON.stringify(payload));
-      if (screenshot && !isCod) fd.append("screenshot", screenshot);
+      // Compressed in-browser (~100-200 KB instead of 2-8 MB).
+      if (screenshot && !isCod) {
+        fd.append("screenshot", await compressImage(screenshot));
+      }
 
       const res = await fetch("/api/checkout/manual-order", {
         method: "POST",
