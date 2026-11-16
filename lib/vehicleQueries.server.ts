@@ -35,7 +35,7 @@ export const buildShoesQuery = ({
     _id, productName, sizes, disabledSizes, price, isOffer, offerPrice,
     buyOneGetOne, offer1Pair, offer2Pair, offer3Pair, isDisabled,
     disableReason, stock, productLabel,
-    "imageUrl": images[0].asset->url + "?w=360&h=360&auto=format&q=70&fit=crop"
+    "imageUrl": images[0].asset->url + "?w=182&h=182&auto=format&q=50&fit=crop"
   }`;
 };
 
@@ -50,7 +50,7 @@ const SHOE_BY_ID = `*[_type == "shoe" && _id == $id][0] {
 
 const REVIEWS = `*[_type == "review" && isApproved == true && count(reviewImages) > 0][0...20].reviewImages[].asset->url`;
 
-const REVALIDATE = 3600;
+const REVALIDATE = 86400;
 
 export const fetchShoes = (args: Parameters<typeof buildShoesQuery>[0]) =>
   client.fetch(

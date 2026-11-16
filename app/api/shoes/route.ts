@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
     pairs: p.get("pairs") ? Number(p.get("pairs")) : null,
   });
   return NextResponse.json(data, {
-    headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
+    headers: {
+      "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800",
+    },
   });
 }
