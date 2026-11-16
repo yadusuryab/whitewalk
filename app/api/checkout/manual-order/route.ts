@@ -30,7 +30,8 @@ const fail = (error: string, status = 400) =>
 // Check real image bytes, not the client-sent mime type
 const detectImage = (buf: Buffer): string | null => {
   if (buf.length < 12) return null;
-  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
+    return "image/jpeg";
   if (
     buf
       .subarray(0, 8)
@@ -193,8 +194,7 @@ export async function POST(req: Request) {
     }
 
     const offer = OFFER_CONFIG[pairCount];
-    const addCleaner =
-      !!body.addShoeCleaner && !!settings?.shoeCleanerAddon;
+    const addCleaner = !!body.addShoeCleaner && !!settings?.shoeCleanerAddon;
 
     // ----- Region-aware pricing (matches the client exactly) -----
     // Random 3rd pair value is already inside offer.basePrice.
