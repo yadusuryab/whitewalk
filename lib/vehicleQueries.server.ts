@@ -35,7 +35,7 @@ export const buildShoesQuery = ({
     _id, productName, sizes, disabledSizes, price, isOffer, offerPrice,
     buyOneGetOne, offer1Pair, offer2Pair, offer3Pair, isDisabled,
     disableReason, stock, productLabel,
-    "imageUrl": images[0].asset->url + "?w=182&h=182&auto=format&q=50&fit=crop"
+    "imageUrl": images[0].asset->url + "?w=182&h=182&auto=format&q=100&fit=crop"
   }`;
 };
 
